@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyCharm
+.idea/
+
+# Model Weights
+*.pt
+*.onnx
+*.engine
+
+# Outputs
+outputs/
+runs/
+logs/
+
+# Dataset
+datasets/
+
+# Environment
+.env
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Image
+.jpg
