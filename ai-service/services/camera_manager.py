@@ -1,33 +1,28 @@
-from concurrent.futures import ThreadPoolExecutor
+import multiprocessing as mp
 
-from services.camera_worker import CameraWorker
+from utils.process_runner import run_camera
 
 
 class CameraManager:
 
-    def __init__(self, detector):
-
-        self.detector = detector
-        self.workers = []
+    def __init__(self):
+        self.camera_configs = []
+        self.processes = []
 
     def add_camera(self, camera_config):
-
-        worker = CameraWorker(
-            camera_config,
-            self.detector
-        )
-
-        self.workers.append(worker)
+        self.camera_configs.append(camera_config)
 
     def start(self):
 
-        if len(self.workers) == 0:
+        if len(self.camera_configs) == 0:
             print("No camera found.")
             return
 
-        with ThreadPoolExecutor(
-                max_workers=len(self.workers)
-        ) as executor:
+        for config in self.camera_configs:
 
-            for worker in self.workers:
-                executor.submit(worker.run)
+            p = mp.Process(target=run_camera, args=(config,))
+            p.start()
+            self.processes.append(p)
+
+        for p in self.processes:
+            p.join()

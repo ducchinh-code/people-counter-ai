@@ -1,18 +1,20 @@
-from core.detector import Detector
-
 from services.camera_loader import CameraLoader
 from services.camera_manager import CameraManager
 
-detector = Detector()
 
-manager = CameraManager(detector)
+def main():
 
-cameras = CameraLoader.load("data/cameras.json")
+    manager = CameraManager()
 
-for camera in cameras:
+    cameras = CameraLoader.load("data/cameras.json")
 
-    if camera.enabled:
+    for camera in cameras:
 
-        manager.add_camera(camera)
+        if camera.enabled:
+            manager.add_camera(camera)
 
-manager.start()
+    manager.start()
+
+
+if __name__ == "__main__":
+    main()
