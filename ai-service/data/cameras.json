@@ -1,0 +1,23 @@
+[
+    {
+        "camera_id": 1,
+        "name": "Gate A",
+        "source": "datasets/TownCentreXVID.mp4",
+        "tracker": "botsort.yaml",
+        "region": [
+            [1883,634],
+            [433,263]
+        ],
+        "enabled": true
+    },
+    {
+        "camera_id": 2,
+        "name": "Gate B",
+        "source": "datasets/20250808_135344.mp4",
+        "tracker": "botsort.yaml",
+        "region": [
+            [919, 1259], [1817, 1261], [810, 1225], [909, 1218]
+        ],
+        "enabled": true
+    }
+]

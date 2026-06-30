@@ -1,31 +1,129 @@
-# Python
-__pycache__/
+# ======================================================
+# OS
+# ======================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ======================================================
+# IDE
+# ======================================================
+.idea/
+.vscode/
+
+# ======================================================
+# Python (AI Service)
+# ======================================================
+**/__pycache__/
 *.py[cod]
 *.pyo
+*.pyd
+*.so
 
-# PyCharm
-.idea/
-
-# Model Weights
-*.pt
-*.onnx
-*.engine
-
-# Outputs
-outputs/
-runs/
-logs/
-
-# Dataset
-datasets/
-
-# Environment
-.env
-
-# Virtual Environment
 .venv/
 venv/
 env/
 
-# Image
-.jpg
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.*
+
+# ======================================================
+# AI Models
+# (Model có thể tải lại hoặc quá lớn)
+# ======================================================
+ai-service/models/*.pt
+ai-service/models/*.onnx
+ai-service/models/*.engine
+ai-service/models/*.tflite
+
+trainning/*.pt
+trainning/runs/
+
+# giữ thư mục
+!ai-service/models/.gitkeep
+
+# ======================================================
+# Dataset
+# ======================================================
+ai-service/datasets/
+datasets/
+
+# ======================================================
+# AI Output
+# ======================================================
+ai-service/output/
+output/
+
+# ======================================================
+# Logs
+# ======================================================
+logs/
+*.log
+
+# ======================================================
+# Java / Spring Boot
+# ======================================================
+backend/target/
+backend/.mvn/
+backend/*.log
+
+# Maven wrapper (nếu có)
+!.mvn/wrapper/maven-wrapper.jar
+
+# ======================================================
+# React
+# ======================================================
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.cache/
+
+# npm
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# ======================================================
+# Docker
+# ======================================================
+docker/**/*.log
+
+# ======================================================
+# Database
+# ======================================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ======================================================
+# Temporary
+# ======================================================
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# ======================================================
+# Generated Images / Videos
+# ======================================================
+*.avi
+*.mp4
+*.mov
+*.mkv
+
+*.png
+*.jpg
+*.jpeg
+
+# ======================================================
+# Nhưng vẫn giữ các ảnh cần thiết cho README
+# ======================================================
+!README_assets/**
+!docs/**
