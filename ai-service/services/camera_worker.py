@@ -167,6 +167,7 @@ class CameraWorker:
                     self.logger.warning(f"Failed to push hourly stats: {e}")
 
             self.current_hour = hour_label
+            self.statistics.start_new_hour()
 
     def _cleanup(self):
         """Giải phóng tài nguyên và lưu thống kê cuối."""
@@ -184,16 +185,27 @@ class CameraWorker:
         self.logger.info("Stopped")
 
     def _finalize_statistics(self):
-        """
-        Ghi lại phần cuối chưa đủ 1 giờ khi bị dừng đột ngột.
-        """
 
         now_label = datetime.now().strftime("%H:%M")
         range_label = f"{self.current_hour}-{now_label} (partial)"
 
         self.statistics.add_record(range_label)
+        record = self.statistics.records[-1]
+
         self.statistics.save_csv(self.csv_file_name)
         self.statistics.draw_chart(self.chart_file_name)
+
+        # Push record partial lên backend
+        if self.api_client is not None:
+            try:
+                self.api_client.push_hourly_stats(
+                    camera_id=self.config.camera_id,
+                    hour=range_label,
+                    in_count=record["IN"],
+                    out_count=record["OUT"]
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to push hourly stats (partial): {e}")
 
         peak = self.statistics.peak_hour()
         if peak is not None:

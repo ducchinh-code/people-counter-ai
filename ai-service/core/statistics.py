@@ -26,15 +26,6 @@ class Statistics:
         self.total_in = in_count
         self.total_out = out_count
 
-    def start_new_hour(self):
-        """
-        Đánh dấu mốc đầu giờ mới — lưu lại giá trị tích lũy hiện tại
-        làm baseline để tính delta cho giờ tiếp theo.
-        Gọi hàm này khi bắt đầu mỗi giờ mới.
-        """
-
-        self._hour_start_in = self.total_in
-        self._hour_start_out = self.total_out
 
     def add_record(self, hour):
         """
