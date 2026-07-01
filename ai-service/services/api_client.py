@@ -32,12 +32,23 @@ class ApiClient:
     def push_frame(self, camera_id, frame_bytes):
 
         try:
-            self.session.post(
+            response = self.session.post(
                 f"{self.base_url}/api/cameras/{camera_id}/frame",
                 data=frame_bytes,
                 headers={**self.session.headers, "Content-Type": "image/jpeg"},
                 timeout=1
             )
+            response.raise_for_status()
+
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"push_frame cam{camera_id} — backend không kết nối được")
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"push_frame cam{camera_id} — timeout")
+
+        except requests.exceptions.HTTPError as e:
+            logger.warning(f"push_frame cam{camera_id} — HTTP error: {e}")
+
         except Exception as e:
             logger.warning(f"push_frame cam{camera_id} failed: {e}")
 

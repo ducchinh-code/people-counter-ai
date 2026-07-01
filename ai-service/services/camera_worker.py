@@ -1,4 +1,6 @@
 import os
+import signal
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -45,10 +47,25 @@ class CameraWorker:
 
         self.current_hour = None
         self.loop_count = 0
+        self._read_fail_count = 0
+        self._stop_requested = False
 
-        # Chỉ tạo VideoWriter khi không phải HEADLESS
-        # (production stream frame lên backend, không ghi file)
         self.video_writer = None if HEADLESS else self._create_video_writer()
+
+        signal.signal(signal.SIGTERM, self._handle_stop_signal)
+        signal.signal(signal.SIGINT, self._handle_stop_signal)
+
+    def _handle_stop_signal(self, signum, frame):
+        self.logger.info(f"Received signal {signum} — sẽ dừng sau frame hiện tại")
+        self._stop_requested = True
+
+    def _reset_counter(self):
+
+        self.counter = Counter(
+            detector=self.detector,
+            tracker=self.tracker,
+            region=self.config.region
+        )
 
     def _create_video_writer(self):
 
@@ -77,18 +94,33 @@ class CameraWorker:
         if not HEADLESS:
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
 
-        self.current_hour = datetime.now().strftime("%H:00")
+        self._start_label = datetime.now().strftime("%d/%m %H:%M")
+        self._first_record = True
+
+        self.current_hour = self._hour_key()
         self.statistics.start_new_hour()
 
-        while True:
+        while not self._stop_requested:
 
             success, frame = self.cap.read()
 
             if not success:
+                self._read_fail_count += 1
+
+                if self._read_fail_count > 1:
+                    self.logger.warning(
+                        f"Đọc frame thất bại liên tiếp lần {self._read_fail_count} "
+                        f"— nguồn: {self.config.source}"
+                    )
+                    time.sleep(min(1.0, 0.1 * self._read_fail_count))
+
                 self.loop_count += 1
                 self.logger.debug(f"Video looped (#{self.loop_count})")
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                self._reset_counter()
                 continue
+
+            self._read_fail_count = 0
 
             results = self.counter.process(frame)
 
@@ -107,15 +139,11 @@ class CameraWorker:
                 self.video_writer.write(annotated_frame)
                 cv2.imshow(self.window_name, annotated_frame)
                 if cv2.waitKey(1) & 0xFF == 27:
-                    break
+                    self._stop_requested = True
 
         self._cleanup()
 
     def _push_frame(self, frame):
-        """
-        Encode frame thành JPEG và push lên backend.
-        Chỉ chạy trong HEADLESS mode.
-        """
 
         if self.api_client is None:
             return
@@ -133,13 +161,21 @@ class CameraWorker:
         except Exception as e:
             self.logger.warning(f"Failed to push frame: {e}")
 
+    def _hour_key(self):
+
+        return datetime.now().strftime("%d/%m %H:00")
+
     def _record_if_new_hour(self):
 
-        hour_label = datetime.now().strftime("%H:00")
+        hour_label = self._hour_key()
 
         if hour_label != self.current_hour:
 
-            range_label = f"{self.current_hour}-{hour_label}"
+            if self._first_record:
+                range_label = f"{self._start_label}-{hour_label} (partial)"
+                self._first_record = False
+            else:
+                range_label = f"{self.current_hour}-{hour_label}"
 
             self.statistics.add_record(range_label)
 
@@ -150,7 +186,6 @@ class CameraWorker:
                 f"IN={record['IN']}, OUT={record['OUT']}, TOTAL={record['TOTAL']}"
             )
 
-            # Ghi CSV và chart ngay — không chờ đến khi dừng
             self.statistics.save_csv(self.csv_file_name)
             self.statistics.draw_chart(self.chart_file_name)
 
@@ -167,7 +202,6 @@ class CameraWorker:
                     self.logger.warning(f"Failed to push hourly stats: {e}")
 
             self.current_hour = hour_label
-            self.statistics.start_new_hour()
 
     def _cleanup(self):
         """Giải phóng tài nguyên và lưu thống kê cuối."""
@@ -186,8 +220,10 @@ class CameraWorker:
 
     def _finalize_statistics(self):
 
-        now_label = datetime.now().strftime("%H:%M")
-        range_label = f"{self.current_hour}-{now_label} (partial)"
+        now_label = datetime.now().strftime("%d/%m %H:%M")
+
+        start_label = self._start_label if self._first_record else self.current_hour
+        range_label = f"{start_label}-{now_label} (partial)"
 
         self.statistics.add_record(range_label)
         record = self.statistics.records[-1]

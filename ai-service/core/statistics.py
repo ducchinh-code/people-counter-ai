@@ -8,39 +8,25 @@ class Statistics:
 
     def __init__(self):
 
-        # Số tích lũy hiện tại (cập nhật liên tục từ counter)
         self.total_in = 0
         self.total_out = 0
 
-        # Số tích lũy tại đầu giờ hiện tại (để tính delta)
         self._hour_start_in = 0
         self._hour_start_out = 0
 
         self.records = []
 
     def update(self, in_count, out_count):
-        """
-        Cập nhật số tích lũy hiện tại từ counter.
-        """
 
         self.total_in = in_count
         self.total_out = out_count
 
     def start_new_hour(self):
-        """
-        Đánh dấu mốc đầu giờ mới — lưu lại giá trị tích lũy hiện tại
-        làm baseline để tính delta cho giờ tiếp theo.
-        Gọi hàm này khi bắt đầu mỗi giờ mới.
-        """
 
         self._hour_start_in = self.total_in
         self._hour_start_out = self.total_out
 
     def add_record(self, hour):
-        """
-        Lưu số người ra/vào TRONG giờ vừa kết thúc (delta so với đầu giờ),
-        không phải số tích lũy toàn bộ.
-        """
 
         delta_in = self.total_in - self._hour_start_in
         delta_out = self.total_out - self._hour_start_out
@@ -52,7 +38,6 @@ class Statistics:
             "TOTAL": delta_in + delta_out
         })
 
-        # Cập nhật baseline cho giờ tiếp theo
         self._hour_start_in = self.total_in
         self._hour_start_out = self.total_out
 
@@ -70,9 +55,6 @@ class Statistics:
         )
 
     def peak_hour(self):
-        """
-        Trả về giờ có nhiều người ra/vào nhất trong ngày.
-        """
 
         df = self.get_dataframe()
 
@@ -92,7 +74,7 @@ class Statistics:
 
         plt.figure(figsize=(14, 6))
 
-        plt.bar(
+        bars_in = plt.bar(
             df["Hour"],
             df["IN"],
             label="IN",
@@ -100,7 +82,7 @@ class Statistics:
             alpha=0.8
         )
 
-        plt.bar(
+        bars_out = plt.bar(
             df["Hour"],
             df["OUT"],
             bottom=df["IN"],
@@ -109,9 +91,18 @@ class Statistics:
             alpha=0.8
         )
 
+        is_partial = df["Hour"].str.contains(r"\(partial\)", regex=True)
+
+        for i, partial in enumerate(is_partial):
+            if partial:
+                bars_in[i].set_hatch("//")
+                bars_in[i].set_alpha(0.35)
+                bars_out[i].set_hatch("//")
+                bars_out[i].set_alpha(0.35)
+
         plt.xlabel("Giờ")
         plt.ylabel("Số người")
-        plt.title("Lưu lượng người ra/vào theo từng giờ")
+        plt.title("Lưu lượng người ra/vào theo từng giờ\n(cột gạch chéo = khoảng thời gian ngắn hơn 1 giờ)")
         plt.legend()
         plt.xticks(rotation=45)
         plt.grid(axis="y")
