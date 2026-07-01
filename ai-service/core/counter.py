@@ -1,5 +1,8 @@
 from ultralytics import solutions
+from ultralytics.utils import LOGGER as ultralytics_logger
+import logging
 
+ultralytics_logger.setLevel(logging.ERROR)
 
 class Counter:
 
@@ -20,7 +23,9 @@ class Counter:
 
             region=region,
 
-            classes=[0]
+            classes=[0],
+
+            verbose=False
 
         )
 

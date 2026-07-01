@@ -6,6 +6,7 @@ import cv2
 from core.tracker import Tracker
 from core.counter import Counter
 from core.statistics import Statistics
+from utils.logger import get_logger
 
 
 class CameraWorker:
@@ -14,10 +15,12 @@ class CameraWorker:
 
         self.config = camera_config
         self.detector = detector
+        self.logger = get_logger(f"camera.{camera_config.camera_id}")
 
         self.cap = cv2.VideoCapture(camera_config.source)
 
         if not self.cap.isOpened():
+            self.logger.error(f"Cannot open camera source: {camera_config.source}")
             raise Exception(f"Cannot open camera: {camera_config.source}")
 
         self.tracker = Tracker(camera_config.tracker)
@@ -32,13 +35,12 @@ class CameraWorker:
 
         self.window_name = f"{camera_config.camera_id} - {camera_config.name}"
 
-        # File output riêng cho từng camera, tránh ghi đè lẫn nhau
         self.csv_file_name = f"people_statistics_cam{camera_config.camera_id}.csv"
         self.chart_file_name = f"people_flow_cam{camera_config.camera_id}.png"
         self.video_file_name = f"people_video_cam{camera_config.camera_id}.mp4"
 
-        # Theo dõi mốc giờ hiện tại để biết khi nào sang giờ mới
         self.current_hour = None
+        self.loop_count = 0
 
         self.video_writer = self._create_video_writer()
 
@@ -48,7 +50,6 @@ class CameraWorker:
 
         fps = self.cap.get(cv2.CAP_PROP_FPS)
 
-        # Một số video không trả về FPS hợp lệ (0 hoặc NaN) -> dùng giá trị mặc định
         if not fps or fps <= 0:
             fps = 25
 
@@ -56,21 +57,29 @@ class CameraWorker:
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
         output_path = str(Path("output") / self.video_file_name)
 
         return cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     def run(self):
 
+        self.logger.info(f"Started — source: {self.config.source}")
+
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
 
-        while self.cap.isOpened():
+        self.current_hour = datetime.now().strftime("%H:00")
+        self.statistics.start_new_hour()
+
+        while True:
 
             success, frame = self.cap.read()
 
             if not success:
-                break
+                # Hết video -> tua lại (loop vô hạn giống camera thật)
+                self.loop_count += 1
+                self.logger.debug(f"Video looped (#{self.loop_count})")
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
 
             results = self.counter.process(frame)
 
@@ -83,10 +92,7 @@ class CameraWorker:
 
             self.video_writer.write(results.plot_im)
 
-            cv2.imshow(
-                self.window_name,
-                results.plot_im
-            )
+            cv2.imshow(self.window_name, results.plot_im)
 
             if cv2.waitKey(1) & 0xFF == 27:
                 break
@@ -96,29 +102,34 @@ class CameraWorker:
 
         self._finalize_statistics()
 
-        print(f"{self.window_name} stopped.")
+        self.logger.info("Stopped")
 
     def _record_if_new_hour(self):
-        """
-        Ghi nhận 1 record thống kê mỗi khi sang giờ mới (theo giờ thực của hệ thống).
-        """
 
         hour_label = datetime.now().strftime("%H:00")
 
         if hour_label != self.current_hour:
 
+            next_hour = datetime.now().strftime("%H:00")
+            range_label = f"{self.current_hour}-{next_hour}"
+
+            self.statistics.add_record(range_label)
+
+            self.logger.info(
+                f"Hour recorded [{range_label}] — "
+                f"IN={self.statistics.records[-1]['IN']}, "
+                f"OUT={self.statistics.records[-1]['OUT']}, "
+                f"TOTAL={self.statistics.records[-1]['TOTAL']}"
+            )
+
             self.current_hour = hour_label
 
-            self.statistics.add_record(hour_label)
-
     def _finalize_statistics(self):
-        """
-        Lưu lại record cuối cùng (số liệu tại thời điểm dừng) và xuất CSV + biểu đồ.
-        """
 
-        # Đảm bảo luôn có ít nhất 1 record, kể cả khi video kết thúc
-        # trước khi sang giờ mới.
-        self._record_if_new_hour()
+        now_label = datetime.now().strftime("%H:%M")
+        range_label = f"{self.current_hour}-{now_label}"
+
+        self.statistics.add_record(range_label)
 
         self.statistics.save_csv(self.csv_file_name)
         self.statistics.draw_chart(self.chart_file_name)
@@ -126,13 +137,13 @@ class CameraWorker:
         peak = self.statistics.peak_hour()
 
         if peak is not None:
-            print(
-                f"[{self.window_name}] Peak hour: {peak['Hour']} "
+            self.logger.info(
+                f"Peak hour: {peak['Hour']} "
                 f"(IN={peak['IN']}, OUT={peak['OUT']}, TOTAL={peak['TOTAL']})"
             )
 
-        print(
-            f"[{self.window_name}] Saved: "
+        self.logger.info(
+            f"Saved — "
             f"output/{self.csv_file_name}, "
             f"output/{self.chart_file_name}, "
             f"output/{self.video_file_name}"
