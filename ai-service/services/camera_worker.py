@@ -202,6 +202,7 @@ class CameraWorker:
                     self.logger.warning(f"Failed to push hourly stats: {e}")
 
             self.current_hour = hour_label
+            self.statistics.start_new_hour()
 
     def _cleanup(self):
         """Giải phóng tài nguyên và lưu thống kê cuối."""
