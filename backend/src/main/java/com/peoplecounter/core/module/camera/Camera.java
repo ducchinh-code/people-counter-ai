@@ -28,9 +28,11 @@ public class Camera extends BaseEntity {
     @Column(name = "region", columnDefinition = "jsonb", nullable = false)
     private List<List<Integer>> region;
 
+    @Builder.Default
     @Column(name = "tracker", length = 50)
     private String tracker = "botsort.yaml";
 
+    @Builder.Default
     @Column(name = "enabled")
     private Boolean enabled = true;
 
