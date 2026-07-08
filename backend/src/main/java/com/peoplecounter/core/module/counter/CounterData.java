@@ -1,6 +1,7 @@
 package com.peoplecounter.core.module.counter;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.peoplecounter.base.domain.BaseEntity;
 import com.peoplecounter.core.module.camera.Camera;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CounterData {
+public class CounterData extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

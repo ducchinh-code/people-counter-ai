@@ -1,5 +1,6 @@
 import os
 import requests
+import time
 from utils.logger import get_logger
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
@@ -17,6 +18,7 @@ class ApiClient:
             "Content-Type": "application/json",
             "X-Api-Key": API_KEY
         })
+        logger.info(f"ApiClient init — BACKEND_URL={BACKEND_URL}, API_KEY={'***' if API_KEY else 'EMPTY'}")
 
     def push_hourly_stats(self, camera_id, hour, in_count, out_count):
 

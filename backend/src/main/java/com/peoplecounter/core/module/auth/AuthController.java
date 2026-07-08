@@ -19,6 +19,7 @@ public class AuthController {
 
     private final AuthService authService;
 
+    // POST /api/auth/login
     @PostMapping("/login")
     public ResponseEntity<BaseResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request
@@ -27,6 +28,7 @@ public class AuthController {
         return ResponseEntity.ok(BaseResponse.ok("Login successful", response));
     }
 
+    // POST /api/auth/register
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<AuthResponse>> register(
@@ -38,6 +40,7 @@ public class AuthController {
         );
     }
 
+    // GET /api/auth/me
     @GetMapping("/me")
     public ResponseEntity<BaseResponse<User>> me(
             @AuthenticationPrincipal UserDetails userDetails

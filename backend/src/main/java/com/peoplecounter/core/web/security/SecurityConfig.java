@@ -3,6 +3,7 @@ package com.peoplecounter.core.web.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -33,14 +34,31 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**",
-                                "/api-docs/**"
+                                "/swagger-ui.html",
+                                "/api-docs/**",
+                                "/v3/api-docs/**",
+                                "/ws/**"
                         ).permitAll()
-                        .requestMatchers(
-                                "/api/counter/**",
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/counter/hourly",
                                 "/api/cameras/*/frame"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/counter/snapshot"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/cameras/enabled",
+                                "/api/cameras/*/stream",
+                                "/api/counter/snapshot",
+                                "/api/counter/snapshot/**",
+                                "/api/stats",
+                                "/api/stats/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
