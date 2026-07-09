@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pc_postgres
+    environment:
+      POSTGRES_DB: peoplecounter
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: pc_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/peoplecounter
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migrations
+      APP_API_KEY: ${APP_API_KEY:-dev-secret-key}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-admin123}
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:8081
+    ports:
+      - "8080:8080"
+
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: pc_ai_service
+    depends_on:
+      - backend
+    environment:
+      HEADLESS: "true"
+      BACKEND_URL: http://backend:8080
+      API_KEY: ${APP_API_KEY:-dev-secret-key}
+    volumes:
+      - ../ai-service/datasets:/app/datasets
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    container_name: pc_frontend
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+
+volumes:
+  pc_pgdata:

@@ -1,0 +1,81 @@
+version: "3.9"
+
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pc_postgres_dev
+    environment:
+      POSTGRES_DB: peoplecounter
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pc_pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: pc_backend_dev
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/peoplecounter
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migrations
+      APP_API_KEY: ${APP_API_KEY:-dev-secret-key}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-admin123}
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    volumes:
+      - ../backend:/app
+      - pc_maven_cache:/root/.m2
+    ports:
+      - "8080:8080"
+    command: mvn spring-boot:run
+
+  ai-service:
+    image: python:3.11-slim
+    container_name: pc_ai_service_dev
+    working_dir: /app
+    depends_on:
+      - backend
+    environment:
+      HEADLESS: "true"
+      BACKEND_URL: http://backend:8080
+      API_KEY: ${APP_API_KEY:-dev-secret-key}
+    volumes:
+      - ../ai-service:/app
+    command: >
+      bash -c "apt-get update && apt-get install -y libgl1 libglib2.0-0 &&
+               pip install --no-cache-dir -r requirements.txt &&
+               python app.py"
+
+  frontend:
+    image: node:20-alpine
+    container_name: pc_frontend_dev
+    working_dir: /app
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+    volumes:
+      - ../frontend:/app
+      - pc_node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+
+volumes:
+  pc_pgdata_dev:
+  pc_maven_cache:
+  pc_node_modules:

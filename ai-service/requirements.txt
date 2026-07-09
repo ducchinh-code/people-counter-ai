@@ -4,3 +4,4 @@ opencv-python-headless==4.13.0.92
 pandas==3.0.3
 ultralytics==8.4.77
 requests==2.34.2
+websocket-client==1.9.0

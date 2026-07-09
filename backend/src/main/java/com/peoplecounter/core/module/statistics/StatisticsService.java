@@ -58,10 +58,10 @@ public class StatisticsService {
                 .collect(java.util.stream.Collectors.groupingBy(
                         r -> r.getCamera().getId()
                 ))
-                .entrySet().stream()
-                .map(entry -> {
-                    Camera camera = entry.getValue().get(0).getCamera();
-                    return buildResponse(camera, date, entry.getValue());
+                .values().stream()
+                .map(counterData -> {
+                    Camera camera = counterData.getFirst().getCamera();
+                    return buildResponse(camera, date, counterData);
                 })
                 .sorted(Comparator.comparing(StatisticsResponse::getCameraId))
                 .toList();

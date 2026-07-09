@@ -18,10 +18,6 @@ import java.time.LocalDateTime;
 @Builder
 public class CounterData extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
     @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "camera_id", nullable = false)

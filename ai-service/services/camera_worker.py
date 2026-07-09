@@ -52,6 +52,9 @@ class CameraWorker:
 
         self.video_writer = None if HEADLESS else self._create_video_writer()
 
+        self._last_snapshot_push = 0.0
+        self.SNAPSHOT_PUSH_INTERVAL = 1.0
+
         signal.signal(signal.SIGTERM, self._handle_stop_signal)
         signal.signal(signal.SIGINT, self._handle_stop_signal)
 
@@ -135,6 +138,7 @@ class CameraWorker:
 
             if HEADLESS:
                 self._push_frame(annotated_frame)
+                self._push_snapshot_if_due()
             else:
                 self.video_writer.write(annotated_frame)
                 cv2.imshow(self.window_name, annotated_frame)
@@ -160,6 +164,25 @@ class CameraWorker:
             )
         except Exception as e:
             self.logger.warning(f"Failed to push frame: {e}")
+
+    def _push_snapshot_if_due(self):
+        if self.api_client is None:
+            return
+
+        now = time.time()
+        if now - self._last_snapshot_push < self.SNAPSHOT_PUSH_INTERVAL:
+            return
+
+        self._last_snapshot_push = now
+
+        try:
+            self.api_client.push_snapshot(
+                camera_id=self.config.camera_id,
+                current_in=self.counter.in_count,
+                current_out=self.counter.out_count
+            )
+        except Exception as e:
+            self.logger.warning(f"Failed to push snapshot: {e}")
 
     def _hour_key(self):
 
@@ -189,7 +212,6 @@ class CameraWorker:
             self.statistics.save_csv(self.csv_file_name)
             self.statistics.draw_chart(self.chart_file_name)
 
-            # Push lên backend lưu DB
             if self.api_client is not None:
                 try:
                     self.api_client.push_hourly_stats(
@@ -205,7 +227,6 @@ class CameraWorker:
             self.statistics.start_new_hour()
 
     def _cleanup(self):
-        """Giải phóng tài nguyên và lưu thống kê cuối."""
 
         self.cap.release()
 

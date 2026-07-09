@@ -74,6 +74,7 @@ backend/.mvn/
 backend/*.log
 backend/src/main/resources/application-dev.yml
 backend/src/main/resources/application-prod.yml
+backend/src/main/resources/logback-spring.xml
 
 # Maven wrapper (nếu có)
 !.mvn/wrapper/maven-wrapper.jar

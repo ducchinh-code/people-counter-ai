@@ -2,13 +2,10 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-# =====================================================
-# PATH
-# =====================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-VIDEO_PATH = BASE_DIR / "datasets" / "20250808_135344.mp4"
+VIDEO_PATH = BASE_DIR / "datasets" / "store.mp4"
 
 print("=" * 60)
 print("Current file :", __file__)
@@ -21,9 +18,7 @@ if not VIDEO_PATH.exists():
     print("ERROR: Video does not exist!")
     exit()
 
-# =====================================================
-# OPEN VIDEO
-# =====================================================
+
 
 cap = cv2.VideoCapture(str(VIDEO_PATH))
 

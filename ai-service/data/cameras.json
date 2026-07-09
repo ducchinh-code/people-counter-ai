@@ -19,5 +19,15 @@
             [811, 1171], [1824, 1178]
         ],
         "enabled": true
+    },
+    {
+        "camera_id": 3,
+        "name": "Gate C",
+        "source": "datasets/store.mp4",
+        "tracker": "botsort.yaml",
+        "region": [
+            [1056, 621], [965, 718]
+        ],
+        "enabled": true
     }
 ]
