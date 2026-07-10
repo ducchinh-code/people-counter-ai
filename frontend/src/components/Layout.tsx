@@ -30,6 +30,11 @@ export default function Layout() {
                                 Quản lý Camera
                             </NavLink>
                         )}
+                        {isAdmin && (
+                            <NavLink to="/users" className={linkClass}>
+                                Quản lý người dùng
+                            </NavLink>
+                        )}
                     </div>
                 </div>
 

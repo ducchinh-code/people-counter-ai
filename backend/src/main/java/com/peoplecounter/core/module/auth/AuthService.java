@@ -3,6 +3,7 @@ package com.peoplecounter.core.module.auth;
 import com.peoplecounter.core.module.auth.dto.AuthResponse;
 import com.peoplecounter.core.module.auth.dto.LoginRequest;
 import com.peoplecounter.core.module.auth.dto.RegisterRequest;
+import com.peoplecounter.core.module.auth.dto.UserResponse;
 import com.peoplecounter.core.web.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -80,5 +81,65 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "User not found: " + username
                 ));
+    }
+
+    public java.util.List<UserResponse> listUsers() {
+        return userRepository.findAll().stream()
+                .map(UserResponse::from)
+                .toList();
+    }
+
+    public UserResponse toggleUser(Long id, String currentUsername) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User not found: " + id
+                ));
+
+        if (user.getUsername().equals(currentUsername)) {
+            throw new IllegalArgumentException(
+                    "You cannot disable your own account"
+            );
+        }
+
+        user.setEnabled(!user.getEnabled());
+        userRepository.save(user);
+
+        return UserResponse.from(user);
+    }
+
+    public UserResponse updateRole(Long id, User.Role role, String currentUsername) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User not found: " + id
+                ));
+
+        if (user.getUsername().equals(currentUsername) && role != User.Role.ADMIN) {
+            throw new IllegalArgumentException(
+                    "You cannot remove your own ADMIN role"
+            );
+        }
+
+        user.setRole(role);
+        userRepository.save(user);
+
+        return UserResponse.from(user);
+    }
+
+    public void deleteUser(Long id, String currentUsername) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User not found: " + id
+                ));
+
+        if (user.getUsername().equals(currentUsername)) {
+            throw new IllegalArgumentException(
+                    "You cannot delete your own account"
+            );
+        }
+
+        userRepository.delete(user);
     }
 }

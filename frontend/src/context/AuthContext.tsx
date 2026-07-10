@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { login as loginApi } from "../api/auth";
+import { getTokenExpiryMs } from "../utils/jwt";
 import type { CurrentUser, AuthResponse } from "../types";
 
 interface AuthContextValue {
@@ -12,27 +13,15 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+const EXPIRY_CHECK_INTERVAL_MS = 30_000;
 
+export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<CurrentUser | null>(() => {
         const saved = localStorage.getItem("user");
         return saved ? (JSON.parse(saved) as CurrentUser) : null;
     });
     const [loading, setLoading] = useState(false);
-
-    async function login(username: string, password: string): Promise<AuthResponse> {
-        setLoading(true);
-        try {
-            const data = await loginApi(username, password); // { token, username, role }
-            localStorage.setItem("token", data.token);
-            const currentUser: CurrentUser = { username: data.username, role: data.role };
-            localStorage.setItem("user", JSON.stringify(currentUser));
-            setUser(currentUser);
-            return data;
-        } finally {
-            setLoading(false);
-        }
-    }
+    const intervalRef = useRef<number | null>(null);
 
     function logout() {
         localStorage.removeItem("token");
@@ -40,11 +29,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
     }
 
+    function startExpiryWatcher() {
+        stopExpiryWatcher();
+
+        intervalRef.current = window.setInterval(() => {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                stopExpiryWatcher();
+                return;
+            }
+
+            const expiryMs = getTokenExpiryMs(token);
+            // Không đọc được exp thì bỏ qua (không tự logout để tránh false positive).
+            if (expiryMs !== null && Date.now() >= expiryMs) {
+                logout();
+            }
+        }, EXPIRY_CHECK_INTERVAL_MS);
+    }
+
+    function stopExpiryWatcher() {
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+    }
+
+    async function login(username: string, password: string): Promise<AuthResponse> {
+        setLoading(true);
+        try {
+            const data = await loginApi(username, password);
+            localStorage.setItem("token", data.token);
+            const currentUser: CurrentUser = { username: data.username, role: data.role };
+            localStorage.setItem("user", JSON.stringify(currentUser));
+            setUser(currentUser);
+            startExpiryWatcher();
+            return data;
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Lúc app mới mount (F5, mở tab mới): nếu đã có token cũ, kiểm tra ngay —
+    // có thể nó đã hết hạn từ lâu trong lúc trình duyệt đóng.
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            const expiryMs = getTokenExpiryMs(token);
+            if (expiryMs !== null && Date.now() >= expiryMs) {
+                logout();
+            } else {
+                startExpiryWatcher();
+            }
+        }
+        return () => stopExpiryWatcher();
+    }, []);
 
     useEffect(() => {
         function handleStorage(e: StorageEvent) {
             if (e.key === "token" && !e.newValue) {
                 setUser(null);
+                stopExpiryWatcher();
             }
         }
         window.addEventListener("storage", handleStorage);
@@ -55,9 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return (
         <AuthContext.Provider value={{ user, isAdmin, loading, login, logout }}>
-    {children}
-    </AuthContext.Provider>
-);
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
 export function useAuth(): AuthContextValue {

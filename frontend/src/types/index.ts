@@ -11,6 +11,20 @@ export interface CurrentUser {
     role: Role;
 }
 
+export interface RegisterRequest {
+    username: string;
+    password: string;
+    role: Role;
+}
+
+export interface UserResponse {
+    id: number;
+    username: string;
+    role: Role;
+    enabled: boolean;
+    createdAt: string;
+}
+
 export interface CameraResponse {
     id: number;
     name: string;

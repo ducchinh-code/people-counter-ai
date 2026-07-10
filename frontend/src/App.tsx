@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Stats from "./pages/Stats";
 import CameraManagement from "./pages/CameraManagement";
+import UserManagement from "./pages/UserManagement";
 
 export default function App() {
   return (
@@ -31,6 +32,14 @@ export default function App() {
                     </PrivateRoute>
                   }
               />
+                <Route
+                    path="/users"
+                    element={
+                        <PrivateRoute adminOnly>
+                            <UserManagement />
+                        </PrivateRoute>
+                    }
+                />
             </Route>
           </Routes>
         </AuthProvider>

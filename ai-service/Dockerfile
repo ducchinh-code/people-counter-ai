@@ -17,5 +17,6 @@ RUN mkdir -p output logs
 ENV HEADLESS=true
 ENV PYTHONUNBUFFERED=1
 ENV BACKEND_URL=http://backend:8080
+ENV TZ=Asia/Ho_Chi_Minh
 
 CMD ["python", "app.py"]

@@ -48,4 +48,45 @@ public class AuthController {
         User user = authService.getCurrentUser(userDetails.getUsername());
         return ResponseEntity.ok(BaseResponse.ok(user));
     }
+
+    // GET /api/auth/users
+    @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<java.util.List<com.peoplecounter.core.module.auth.dto.UserResponse>>> listUsers() {
+        return ResponseEntity.ok(BaseResponse.ok(authService.listUsers()));
+    }
+
+    // PATCH /api/auth/users/{id}/toggle
+    @PatchMapping("/users/{id}/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<com.peoplecounter.core.module.auth.dto.UserResponse>> toggleUser(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        var result = authService.toggleUser(id, userDetails.getUsername());
+        return ResponseEntity.ok(BaseResponse.ok(result));
+    }
+
+    // PUT /api/auth/users/{id}/role
+    @PutMapping("/users/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<com.peoplecounter.core.module.auth.dto.UserResponse>> updateRole(
+            @PathVariable Long id,
+            @Valid @RequestBody com.peoplecounter.core.module.auth.dto.UpdateRoleRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        var result = authService.updateRole(id, request.getRole(), userDetails.getUsername());
+        return ResponseEntity.ok(BaseResponse.ok(result));
+    }
+
+    // DELETE /api/auth/users/{id}
+    @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<Void>> deleteUser(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        authService.deleteUser(id, userDetails.getUsername());
+        return ResponseEntity.ok(BaseResponse.ok("User deleted", null));
+    }
 }

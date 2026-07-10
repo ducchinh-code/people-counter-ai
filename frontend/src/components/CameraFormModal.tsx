@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { isAxiosError } from "axios";
 import type { CameraResponse, CameraRequest } from "../types";
+import * as React from "react";
 
 interface CameraFormModalProps {
     camera: CameraResponse | null;
