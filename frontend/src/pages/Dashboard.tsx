@@ -3,7 +3,9 @@ import { getAllCameras } from "../api/cameras";
 import { getAllSnapshots } from "../api/counter";
 import { useSnapshotSocket } from "../hooks/useSnapshotSocket";
 import CameraCard from "../components/CameraCard";
+import CameraZoomModal from "../components/CameraZoomModal";
 import type { CameraResponse, CounterDataResponse } from "../types";
+import { isSnapshotLive } from "../utils/liveStatus";
 
 interface SnapshotMap {
     [cameraId: number]: CounterDataResponse;
@@ -14,6 +16,7 @@ export default function Dashboard() {
     const [initialSnapshots, setInitialSnapshots] = useState<SnapshotMap>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [zoomedCamera, setZoomedCamera] = useState<CameraResponse | null>(null);
 
     const { snapshots: liveSnapshots, connected } = useSnapshotSocket();
 
@@ -74,9 +77,18 @@ export default function Dashboard() {
                             key={camera.id}
                             camera={camera}
                             snapshot={liveSnapshots[camera.id] || initialSnapshots[camera.id]}
+                            onClick={() => setZoomedCamera(camera)}
                         />
                     ))}
                 </div>
+            )}
+            {zoomedCamera && (
+                <CameraZoomModal
+                    camera={zoomedCamera}
+                    snapshot={liveSnapshots[zoomedCamera.id] || initialSnapshots[zoomedCamera.id]}
+                    isLive={isSnapshotLive(liveSnapshots[zoomedCamera.id] || initialSnapshots[zoomedCamera.id])}
+                    onClose={() => setZoomedCamera(null)}
+                />
             )}
         </div>
     );

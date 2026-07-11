@@ -1,26 +1,27 @@
 import { getStreamUrl } from "../api/cameras";
 import { useNow } from "../hooks/useNow";
+import { isSnapshotLive } from "../utils/liveStatus";
 import type { CameraResponse, CounterDataResponse } from "../types";
 
 interface CameraCardProps {
     camera: CameraResponse;
     snapshot?: CounterDataResponse;
+    onClick?: () => void;
 }
 
-// Snapshot cũ hơn ngưỡng này (ms) coi như "mất kết nối" dù enabled=true trong DB.
-// ai-service đẩy snapshot mỗi ~vài giây nên 10s là ngưỡng an toàn.
 const STALE_THRESHOLD_MS = 10_000;
 
-export default function CameraCard({ camera, snapshot }: CameraCardProps) {
+export default function CameraCard({ camera, snapshot, onClick }: CameraCardProps) {
     const now = useNow(2000);
 
     const inCount = snapshot?.inCount ?? 0;
     const outCount = snapshot?.outCount ?? 0;
     const total = snapshot?.total ?? 0;
-
     const recordedAt = snapshot ? new Date(snapshot.recordedAt).getTime() : null;
+    const isLive = isSnapshotLive(snapshot);
+
     console.log("camera", camera.id, "raw:", snapshot?.recordedAt, "parsed:", recordedAt, "isLive:", recordedAt !== null && now - recordedAt < STALE_THRESHOLD_MS);
-    const isLive = recordedAt !== null && now - recordedAt < STALE_THRESHOLD_MS;
+
 
     const status: { label: string; className: string } = !camera.enabled
         ? { label: "Đã tắt", className: "bg-gray-100 text-gray-500" }
@@ -29,7 +30,9 @@ export default function CameraCard({ camera, snapshot }: CameraCardProps) {
             : { label: "● Mất kết nối", className: "bg-red-100 text-red-600" };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div
+            onClick={onClick}
+            className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="aspect-video bg-gray-900 flex items-center justify-center">
                 {camera.enabled && isLive ? (
                     <img

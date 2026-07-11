@@ -49,6 +49,8 @@ class CameraWorker:
         self.loop_count = 0
         self._read_fail_count = 0
         self._stop_requested = False
+        self._cumulative_in = 0
+        self._cumulative_out = 0
 
         self.video_writer = None if HEADLESS else self._create_video_writer()
 
@@ -63,12 +65,22 @@ class CameraWorker:
         self._stop_requested = True
 
     def _reset_counter(self):
+        self._cumulative_in += self.counter.in_count
+        self._cumulative_out += self.counter.out_count
 
         self.counter = Counter(
             detector=self.detector,
             tracker=self.tracker,
             region=self.config.region
         )
+
+    @property
+    def total_in(self) -> int:
+        return self._cumulative_in + self.counter.in_count
+
+    @property
+    def total_out(self) -> int:
+        return self._cumulative_out + self.counter.out_count
 
     def _create_video_writer(self):
 
@@ -128,8 +140,8 @@ class CameraWorker:
             results = self.counter.process(frame)
 
             self.statistics.update(
-                self.counter.in_count,
-                self.counter.out_count
+                self.total_in,
+                self.total_out
             )
 
             self._record_if_new_hour()
@@ -178,8 +190,8 @@ class CameraWorker:
         try:
             self.api_client.push_snapshot(
                 camera_id=self.config.camera_id,
-                current_in=self.counter.in_count,
-                current_out=self.counter.out_count
+                current_in=self.total_in,
+                current_out=self.total_out
             )
         except Exception as e:
             self.logger.warning(f"Failed to push snapshot: {e}")
@@ -209,20 +221,7 @@ class CameraWorker:
                 f"IN={record['IN']}, OUT={record['OUT']}, TOTAL={record['TOTAL']}"
             )
 
-            self.statistics.save_csv(self.csv_file_name)
-            self.statistics.draw_chart(self.chart_file_name)
-
-            if self.api_client is not None:
-                try:
-                    self.api_client.push_hourly_stats(
-                        camera_id=self.config.camera_id,
-                        hour=range_label,
-                        in_count=record["IN"],
-                        out_count=record["OUT"]
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Failed to push hourly stats: {e}")
-
+            self._save_and_push_record(record, range_label)
             self.current_hour = hour_label
             self.statistics.start_new_hour()
 
@@ -250,10 +249,17 @@ class CameraWorker:
         self.statistics.add_record(range_label)
         record = self.statistics.records[-1]
 
-        self.statistics.save_csv(self.csv_file_name)
-        self.statistics.draw_chart(self.chart_file_name)
+        self._save_and_push_record(record, range_label)
 
-        # Push record partial lên backend
+        peak = self.statistics.peak_hour()
+        if peak is not None:
+            self.logger.info(
+                f"Peak hour: {peak['Hour']} "
+                f"(IN={peak['IN']}, OUT={peak['OUT']}, TOTAL={peak['TOTAL']})"
+            )
+
+    def _save_and_push_record(self, record, range_label):
+
         if self.api_client is not None:
             try:
                 self.api_client.push_hourly_stats(
@@ -263,11 +269,7 @@ class CameraWorker:
                     out_count=record["OUT"]
                 )
             except Exception as e:
-                self.logger.warning(f"Failed to push hourly stats (partial): {e}")
-
-        peak = self.statistics.peak_hour()
-        if peak is not None:
-            self.logger.info(
-                f"Peak hour: {peak['Hour']} "
-                f"(IN={peak['IN']}, OUT={peak['OUT']}, TOTAL={peak['TOTAL']})"
-            )
+                self.logger.warning(f"Failed to push hourly stats: {e}")
+                
+        self.statistics.save_csv(self.csv_file_name)
+        self.statistics.draw_chart(self.chart_file_name)

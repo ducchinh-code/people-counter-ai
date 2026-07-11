@@ -25,7 +25,9 @@ class Counter:
 
             classes=[0],
 
-            verbose=False
+            verbose=False,
+
+            imgsz=384
 
         )
 

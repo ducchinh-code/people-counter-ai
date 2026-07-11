@@ -104,7 +104,7 @@ export default function CameraFormModal({
                         />
                     </Field>
 
-                    <Field label="Nguồn (source) — đường dẫn video / URL RTSP">
+                    <Field label="Nguồn — đường dẫn video / URL RTSP">
                         <input
                             className="input"
                             value={form.source}
@@ -124,7 +124,7 @@ export default function CameraFormModal({
                         </select>
                     </Field>
 
-                    <Field label="Vùng đếm (region) — các điểm x,y cách nhau bởi dấu cách">
+                    <Field label="Vùng đếm — các điểm x,y cách nhau bởi dấu cách">
                         <input
                             className="input font-mono"
                             value={form.regionText}
