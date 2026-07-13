@@ -1,4 +1,6 @@
 import os
+from functools import partial
+
 import requests
 import time
 from utils.logger import get_logger
@@ -26,7 +28,8 @@ class ApiClient:
             "cameraId": camera_id,
             "hour": hour,
             "inCount": in_count,
-            "outCount": out_count
+            "outCount": out_count,
+            "partial": partial
         }
 
         self._post("/api/counter/hourly", payload)

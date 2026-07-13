@@ -41,6 +41,14 @@ class Statistics:
         self._hour_start_in = self.total_in
         self._hour_start_out = self.total_out
 
+    @property
+    def current_hour_in(self) -> int:
+        return self.total_in - self._hour_start_in
+
+    @property
+    def current_hour_out(self) -> int:
+        return self.total_out - self._hour_start_out
+
     def get_dataframe(self):
 
         return pd.DataFrame(self.records)

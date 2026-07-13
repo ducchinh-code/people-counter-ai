@@ -18,7 +18,7 @@ export default function Dashboard() {
     const [error, setError] = useState("");
     const [zoomedCamera, setZoomedCamera] = useState<CameraResponse | null>(null);
 
-    const { snapshots: liveSnapshots, connected } = useSnapshotSocket();
+    const { snapshots: liveSnapshots} = useSnapshotSocket();
 
     useEffect(() => {
         async function load() {
@@ -59,13 +59,7 @@ export default function Dashboard() {
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-xl font-semibold text-gray-800">Tổng quan Camera</h1>
-                <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                        connected ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                    }`}
-                >
-          {connected ? "● Realtime đang kết nối" : "○ Đang kết nối lại..."}
-        </span>
+
             </div>
 
             {cameras.length === 0 ? (

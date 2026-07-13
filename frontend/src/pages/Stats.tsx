@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
     BarChart,
     Bar,
@@ -13,6 +13,7 @@ import { getStatsByCamera, getStatsByCameraRange } from "../api/stats";
 import { getAllCameras } from "../api/cameras";
 import type { StatisticsResponse, CameraResponse } from "../types";
 
+
 type ViewMode = "day" | "week" | "month";
 
 
@@ -20,6 +21,7 @@ function formatLocalDate(d: Date): string {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
+
     return `${year}-${month}-${day}`;
 }
 
@@ -54,28 +56,16 @@ function shiftDate(dateStr: string, mode: ViewMode, direction: 1 | -1): string {
     return formatLocalDate(d);
 }
 
-function formatDayLabel(d: Date): string {
-    return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+
+function formatDateVN(dateStr: string): string {
+    const d = parseLocalDate(dateStr);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}/${d.getFullYear()}`;
 }
 
-function rangeLabel(mode: ViewMode, dateStr: string): string {
-    const d = parseLocalDate(dateStr);
-    if (mode === "day") {
-        return d.toLocaleDateString("vi-VN", {
-            weekday: "long",
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
-    }
-    if (mode === "week") {
-        const start = weekStart(dateStr);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 6);
-        return `${formatDayLabel(start)} - ${formatDayLabel(end)}/${end.getFullYear()}`;
-    }
-    const { from } = monthRange(dateStr);
-    return `Tháng ${from.getMonth() + 1}/${from.getFullYear()}`;
+function stripDateFromHourLabel(label: string): string {
+    return label.replace(/\d{2}\/\d{2}\s/g, "");
 }
 
 const viewModeLabels: Record<ViewMode, string> = {
@@ -96,6 +86,8 @@ export default function Stats() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         async function loadCameras() {
@@ -195,28 +187,44 @@ export default function Stats() {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={() => setDate((d) => shiftDate(d, viewMode, -1))}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
                             aria-label="Trước"
                         >
                             &#8592;
                         </button>
-                        <span className="text-sm text-gray-700 min-w-40 text-center px-1">
-              {rangeLabel(viewMode, date)}
-            </span>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => dateInputRef.current?.showPicker()}
+                                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer min-w-27.5 text-center"
+                            >
+                                {formatDateVN(date)}
+                            </button>
+                            <input
+                                ref={dateInputRef}
+                                type="date"
+                                value={date}
+                                max={todayStr()}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="absolute opacity-0 pointer-events-none w-0 h-0"
+                                tabIndex={-1}
+                            />
+                        </div>
                         <button
                             onClick={() => setDate((d) => shiftDate(d, viewMode, 1))}
                             disabled={date >= todayStr()}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-gray-300 disabled:hover:text-gray-600"
                             aria-label="Sau"
                         >
                             &#8594;
                         </button>
+
                         {date < todayStr() && (
                             <button
                                 onClick={() => setDate(todayStr())}
                                 className="ml-1 text-sm text-blue-600 hover:underline px-2"
                             >
-                                Hôm nay
+                                Hiện tại
                             </button>
                         )}
                     </div>
@@ -244,7 +252,6 @@ export default function Stats() {
             {loading && <p className="text-gray-500">Đang tải...</p>}
             {error && <p className="text-red-600">{error}</p>}
 
-            {/* ===== Chế độ NGÀY — biểu đồ theo giờ (giữ nguyên như trước) ===== */}
             {!loading && !error && viewMode === "day" && dayStats && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -264,18 +271,24 @@ export default function Stats() {
                         </p>
                     ) : (
                         <ResponsiveContainer width="100%" height={380}>
-                            <BarChart data={dayStats.hourlyData} margin={{ bottom: 70 }}>
+                            <BarChart
+                                data={dayStats.hourlyData.map((h) => ({
+                                    ...h,
+                                    hour: stripDateFromHourLabel(h.hour),
+                                }))}
+                                margin={{ bottom: 70 }}
+                            >
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis
                                     dataKey="hour"
-                                    tick={{ fontSize: 10 }}
-                                    angle={-45}
+                                    tick={{ fontSize: 13 }}
+                                    angle={-40}
                                     textAnchor="end"
                                     height={100}
                                     interval={0}
                                 />
                                 <YAxis allowDecimals={false} />
-                                <Tooltip />
+                                <Tooltip content={<ChartTooltip />} />
                                 <Legend />
                                 <Bar dataKey="inCount" name="Vào" fill="#2563eb" stackId="a" />
                                 <Bar dataKey="outCount" name="Ra" fill="#f97316" stackId="a" />
@@ -315,7 +328,7 @@ export default function Stats() {
                                     interval={viewMode === "month" ? 1 : 0}
                                 />
                                 <YAxis allowDecimals={false} />
-                                <Tooltip />
+                                <Tooltip content={<ChartTooltip />} />
                                 <Legend />
                                 <Bar dataKey="inCount" name="Vào" fill="#2563eb" stackId="a" />
                                 <Bar dataKey="outCount" name="Ra" fill="#f97316" stackId="a" />
@@ -345,6 +358,32 @@ function SummaryBox({ label, value, color }: SummaryBoxProps) {
         <div className={`rounded-lg py-3 px-3 text-center ${colorMap[color]}`}>
             <p className="text-xl font-semibold">{value}</p>
             <p className="text-xs mt-0.5">{label}</p>
+        </div>
+    );
+}
+
+interface ChartTooltipProps {
+    active?: boolean;
+    payload?: Array<{ name: string; value: number; color: string }>;
+    label?: string;
+}
+
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const total = payload.reduce((sum, p) => sum + (p.value ?? 0), 0);
+
+    return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-md px-3 py-2 text-sm">
+            <p className="font-medium text-gray-800 mb-1">{label}</p>
+            {payload.map((p) => (
+                <p key={p.name} style={{ color: p.color }}>
+                    {p.name}: {p.value}
+                </p>
+            ))}
+            <p className="text-gray-700 font-semibold mt-1 pt-1 border-t border-gray-100">
+                Tổng: {total}
+            </p>
         </div>
     );
 }

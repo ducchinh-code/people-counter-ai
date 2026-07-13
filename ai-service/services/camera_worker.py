@@ -165,6 +165,12 @@ class CameraWorker:
             return
 
         try:
+            h, w = frame.shape[:2]
+            max_width = 960
+            if w > max_width:
+                scale = max_width / w
+                frame = cv2.resize(frame, (max_width, int(h * scale)))
+
             _, jpeg = cv2.imencode(
                 ".jpg",
                 frame,
@@ -190,8 +196,8 @@ class CameraWorker:
         try:
             self.api_client.push_snapshot(
                 camera_id=self.config.camera_id,
-                current_in=self.total_in,
-                current_out=self.total_out
+                current_in=self.statistics.current_hour_in,
+                current_out=self.statistics.current_hour_out
             )
         except Exception as e:
             self.logger.warning(f"Failed to push snapshot: {e}")
@@ -205,6 +211,7 @@ class CameraWorker:
         hour_label = self._hour_key()
 
         if hour_label != self.current_hour:
+            is_partial = self._first_record
 
             if self._first_record:
                 range_label = f"{self._start_label}-{hour_label} (partial)"
@@ -221,7 +228,7 @@ class CameraWorker:
                 f"IN={record['IN']}, OUT={record['OUT']}, TOTAL={record['TOTAL']}"
             )
 
-            self._save_and_push_record(record, range_label)
+            self._save_and_push_record(record, range_label, is_partial)
             self.current_hour = hour_label
             self.statistics.start_new_hour()
 
@@ -249,7 +256,7 @@ class CameraWorker:
         self.statistics.add_record(range_label)
         record = self.statistics.records[-1]
 
-        self._save_and_push_record(record, range_label)
+        self._save_and_push_record(record, range_label, is_partial=True)
 
         peak = self.statistics.peak_hour()
         if peak is not None:
@@ -258,7 +265,7 @@ class CameraWorker:
                 f"(IN={peak['IN']}, OUT={peak['OUT']}, TOTAL={peak['TOTAL']})"
             )
 
-    def _save_and_push_record(self, record, range_label):
+    def _save_and_push_record(self, record, range_label, is_partial):
 
         if self.api_client is not None:
             try:
@@ -266,7 +273,8 @@ class CameraWorker:
                     camera_id=self.config.camera_id,
                     hour=range_label,
                     in_count=record["IN"],
-                    out_count=record["OUT"]
+                    out_count=record["OUT"],
+                    partial=is_partial
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to push hourly stats: {e}")

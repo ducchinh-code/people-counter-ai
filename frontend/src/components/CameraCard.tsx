@@ -1,6 +1,7 @@
 import { getStreamUrl } from "../api/cameras";
 import { useNow } from "../hooks/useNow";
 import { isSnapshotLive } from "../utils/liveStatus";
+import LiveStream from "./LiveStream";
 import type { CameraResponse, CounterDataResponse } from "../types";
 
 interface CameraCardProps {
@@ -34,15 +35,12 @@ export default function CameraCard({ camera, snapshot, onClick }: CameraCardProp
             onClick={onClick}
             className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="aspect-video bg-gray-900 flex items-center justify-center">
-                {camera.enabled && isLive ? (
-                    <img
+                {camera.enabled && isLive  ? (
+                    <LiveStream
                         key={camera.id}
                         src={getStreamUrl(camera.id)}
                         alt={camera.name}
                         className="w-full h-full object-contain"
-                        onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                        }}
                     />
                 ) : (
                     <span className="text-gray-500 text-sm px-4 text-center">

@@ -26,7 +26,6 @@ public class StatisticsService {
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    // ── Thống kê 1 camera theo ngày ─────────────────
     public StatisticsResponse getByCamera(Long cameraId, LocalDate date) {
 
         Camera camera = cameraService.findById(cameraId);
@@ -35,25 +34,23 @@ public class StatisticsService {
         LocalDateTime to = date.plusDays(1).atStartOfDay();
 
         List<CounterData> records =
-                counterDataRepository.findByCameraIdAndRecordedAtBetweenAndPartialFalse(
+                counterDataRepository.findByCameraIdAndRecordedAtBetween(
                         cameraId, from, to
                 );
 
         return buildResponse(camera, date, records);
     }
 
-    // ── Thống kê tất cả camera theo ngày ────────────
     public List<StatisticsResponse> getAll(LocalDate date) {
 
         LocalDateTime from = date.atStartOfDay();
         LocalDateTime to = date.plusDays(1).atStartOfDay();
 
         List<CounterData> records =
-                counterDataRepository.findByRecordedAtBetweenAndPartialFalse(
+                counterDataRepository.findByRecordedAtBetween(
                         from, to
                 );
 
-        // Group theo camera rồi build response cho từng camera
         return records.stream()
                 .collect(java.util.stream.Collectors.groupingBy(
                         r -> r.getCamera().getId()
@@ -67,7 +64,7 @@ public class StatisticsService {
                 .toList();
     }
 
-    // ── Thống kê 1 camera theo khoảng ngày ──────────
+
     public List<StatisticsResponse> getByCameraAndRange(
             Long cameraId,
             LocalDate from,
@@ -75,7 +72,6 @@ public class StatisticsService {
     ) {
         Camera camera = cameraService.findById(cameraId);
 
-        // Tạo response cho từng ngày trong khoảng
         return from.datesUntil(to.plusDays(1))
                 .map(date -> {
                     LocalDateTime start = date.atStartOfDay();
@@ -83,7 +79,7 @@ public class StatisticsService {
 
                     List<CounterData> records =
                             counterDataRepository
-                                    .findByCameraIdAndRecordedAtBetweenAndPartialFalse(
+                                    .findByCameraIdAndRecordedAtBetween(
                                             cameraId, start, end
                                     );
 
@@ -92,24 +88,21 @@ public class StatisticsService {
                 .toList();
     }
 
-    // ── Helper — build StatisticsResponse ───────────
     private StatisticsResponse buildResponse(
             Camera camera,
             LocalDate date,
             List<CounterData> records
     ) {
-        // Tính tổng
+
         int totalIn = records.stream()
                 .mapToInt(CounterData::getInCount).sum();
         int totalOut = records.stream()
                 .mapToInt(CounterData::getOutCount).sum();
 
-        // Tìm peak hour
         CounterData peak = records.stream()
                 .max(Comparator.comparingInt(CounterData::getTotal))
                 .orElse(null);
 
-        // Build hourly data list
         List<StatisticsResponse.HourlyData> hourlyData = records.stream()
                 .sorted(Comparator.comparing(CounterData::getRecordedAt))
                 .map(r -> StatisticsResponse.HourlyData.builder()

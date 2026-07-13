@@ -48,4 +48,15 @@ public interface CounterDataRepository extends JpaRepository<CounterData, Long> 
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to
     );
+
+    List<CounterData> findByCameraIdAndRecordedAtBetween(
+            Long cameraId,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
+    List<CounterData> findByRecordedAtBetween(
+            LocalDateTime from,
+            LocalDateTime to
+    );
 }

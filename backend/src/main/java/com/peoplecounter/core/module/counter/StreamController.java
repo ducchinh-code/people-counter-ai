@@ -68,7 +68,7 @@ public class StreamController {
                 }
 
                 try {
-                    Thread.sleep(33); // ~30fps
+                    Thread.sleep(66);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;

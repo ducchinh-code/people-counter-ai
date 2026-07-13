@@ -8,7 +8,6 @@ from utils.process_runner import run_camera
 logger = get_logger("camera_manager")
 
 
-
 class CameraManager:
 
     def __init__(self):
@@ -63,7 +62,6 @@ class CameraManager:
 
             while not self._stop_event.is_set():
 
-                # Dọn process đã chết
                 dead = [
                     cid for cid, p in self.processes.items()
                     if not p.is_alive()

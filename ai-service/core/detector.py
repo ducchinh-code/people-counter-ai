@@ -4,7 +4,7 @@ from ultralytics import YOLO
 
 class Detector:
 
-    def __init__(self, model_name="best.pt"):
+    def __init__(self, model_name="yolo11s.pt"):
 
         base_dir = Path(__file__).resolve().parent.parent
 
