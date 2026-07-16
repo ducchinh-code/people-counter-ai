@@ -1,4 +1,3 @@
-
 import os
 import queue
 import signal
@@ -50,7 +49,12 @@ class CameraWorker:
         self._cumulative_in = 0
         self._cumulative_out = 0
 
+        # Queue frame đọc từ video — maxsize=2 để không tích lũy frame cũ
+        self._frame_queue = queue.Queue(maxsize=2)
+
+        # Queue frame để push lên backend
         self._push_queue = queue.Queue(maxsize=2)
+
         self._last_snapshot_push = 0.0
         self.SNAPSHOT_PUSH_INTERVAL = 1.0
 
@@ -95,8 +99,47 @@ class CameraWorker:
             fourcc, fps, (width, height)
         )
 
-    def _push_worker(self):
+    def _read_worker(self):
+        """Thread riêng đọc frame liên tục từ video/camera"""
+        video_fps = self.cap.get(cv2.CAP_PROP_FPS) or 25
+        frame_delay = 1.0 / video_fps
 
+        while not self._stop_requested:
+            t_start = time.time()
+
+            success, frame = self.cap.read()
+
+            if not success:
+                self._read_fail_count += 1
+                self.loop_count += 1
+                self.logger.debug(f"Video looped (#{self.loop_count})")
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                self._reset_counter()
+                time.sleep(0.01)
+                continue
+
+            self._read_fail_count = 0
+
+            # Nếu queue đầy bỏ frame cũ nhất
+            if self._frame_queue.full():
+                try:
+                    self._frame_queue.get_nowait()
+                except queue.Empty:
+                    pass
+
+            try:
+                self._frame_queue.put_nowait(frame)
+            except queue.Full:
+                pass
+
+            # Giữ đúng tốc độ video gốc
+            elapsed = time.time() - t_start
+            sleep_time = frame_delay - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+    def _push_worker(self):
+        """Thread riêng push frame lên backend"""
         while not self._stop_requested:
             try:
                 frame_bytes = self._push_queue.get(timeout=1)
@@ -117,6 +160,11 @@ class CameraWorker:
         if not HEADLESS:
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
 
+        # Khởi động thread đọc frame
+        read_thread = threading.Thread(target=self._read_worker, daemon=True)
+        read_thread.start()
+
+        # Khởi động thread push frame
         if HEADLESS:
             push_thread = threading.Thread(target=self._push_worker, daemon=True)
             push_thread.start()
@@ -135,81 +183,75 @@ class CameraWorker:
 
         while not self._stop_requested:
 
-            success, frame = self.cap.read()
-
-            if not success:
-                self._read_fail_count += 1
-                if self._read_fail_count > 1:
-                    time.sleep(min(1.0, 0.1 * self._read_fail_count))
-                self.loop_count += 1
-                self.logger.debug(f"Video looped (#{self.loop_count})")
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                self._reset_counter()
+            # Lấy frame mới nhất từ queue
+            try:
+                frame = self._frame_queue.get(timeout=1)
+            except queue.Empty:
                 continue
 
-            self._read_fail_count = 0
-
             now = time.time()
+
+            # Tính FPS
             instant_fps = 1.0 / max(now - self._fps_last_time, 1e-6)
             self._fps_smoothed = (
-                    self._FPS_SMOOTHING * self._fps_smoothed
-                    + (1 - self._FPS_SMOOTHING) * instant_fps
+                self._FPS_SMOOTHING * self._fps_smoothed
+                + (1 - self._FPS_SMOOTHING) * instant_fps
             )
             self._fps_last_time = now
 
-
+            # Chỉ chạy YOLO theo TARGET_PROCESS_FPS
             if now - last_process_time >= frame_interval:
                 last_process_time = now
 
                 results = self.counter.process(frame)
                 last_annotated = results.plot_im
 
+                # Vẽ FPS lên frame
                 fps_text = f"FPS: {self._fps_smoothed:.1f}"
                 (text_w, text_h), _ = cv2.getTextSize(
                     fps_text, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2
                 )
-
                 overlay = last_annotated.copy()
-                cv2.rectangle(
-                    overlay,
-                    (10, 10),
-                    (10 + text_w + 20, 10 + text_h + 20),
-                    (0, 0, 0),
-                    -1
-                )
+                cv2.rectangle(overlay, (10, 10),
+                              (10 + text_w + 20, 10 + text_h + 20),
+                              (0, 0, 0), -1)
                 cv2.addWeighted(overlay, 0.5, last_annotated, 0.5, 0, last_annotated)
-
-                cv2.putText(
-                    last_annotated,
-                    fps_text,
-                    (20, 10 + text_h + 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1.0,
-                    (0, 255, 255),
-                    2
-                )
+                cv2.putText(last_annotated, fps_text,
+                            (20, 10 + text_h + 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
 
                 self.statistics.update(self.total_in, self.total_out)
                 self._record_if_new_hour()
                 self._push_snapshot_if_due()
 
+                fps_count += 1
+                if fps_count >= 30:
+                    elapsed = time.time() - fps_start
+                    self.logger.debug(
+                        f"YOLO FPS: {fps_count / elapsed:.1f}"
+                    )
+                    fps_count = 0
+                    fps_start = time.time()
 
+            # Push/hiển thị frame mới nhất
+            display_frame = last_annotated if last_annotated is not None else frame
 
-            if HEADLESS and last_annotated is not None:
-                frame_to_push = self._encode_frame(last_annotated)
-                if frame_to_push:
+            if HEADLESS:
+                frame_bytes = self._encode_frame(display_frame)
+                if frame_bytes:
                     if self._push_queue.full():
                         try:
                             self._push_queue.get_nowait()
                         except queue.Empty:
                             pass
                     try:
-                        self._push_queue.put_nowait(frame_to_push)
+                        self._push_queue.put_nowait(frame_bytes)
                     except queue.Full:
                         pass
-            elif not HEADLESS and last_annotated is not None:
-                self.video_writer.write(last_annotated)
-                cv2.imshow(self.window_name, last_annotated)
+            else:
+                if last_annotated is not None:
+                    self.video_writer.write(last_annotated)
+                cv2.imshow(self.window_name, display_frame)
                 if cv2.waitKey(1) & 0xFF == 27:
                     self._stop_requested = True
 

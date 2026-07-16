@@ -8,7 +8,9 @@ import java.util.List;
 @Repository
 public interface CameraRepository extends JpaRepository<Camera, Long> {
 
-    List<Camera> findByEnabledTrue();
+    List<Camera> findAllByOrderByIdAsc();
+
+    List<Camera> findByEnabledTrueOrderByIdAsc();
 
     boolean existsByName(String name);
 }

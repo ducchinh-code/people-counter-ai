@@ -19,14 +19,14 @@ public class CameraService {
     private final SimpMessagingTemplate messagingTemplate;
 
     public List<CameraResponse> getAll() {
-        return cameraRepository.findAll()
+        return cameraRepository.findAllByOrderByIdAsc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<CameraResponse> getAllEnabled() {
-        return cameraRepository.findByEnabledTrue()
+        return cameraRepository.findByEnabledTrueOrderByIdAsc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
