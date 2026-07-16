@@ -1,6 +1,7 @@
 package com.peoplecounter.core.module.camera;
 
 import com.peoplecounter.base.web.BaseResponse;
+import com.peoplecounter.core.module.camera.dto.CameraBulkRequest;
 import com.peoplecounter.core.module.camera.dto.CameraRequest;
 import com.peoplecounter.core.module.camera.dto.CameraResponse;
 import jakarta.validation.Valid;
@@ -11,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/cameras")
@@ -40,27 +40,28 @@ public class CameraController {
         return ResponseEntity.ok(BaseResponse.ok(cameraService.getById(id)));
     }
 
-    // POST /api/cameras
+    // POST /api/cameras — tạo 1 camera
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BaseResponse<?>> create(
-            @RequestBody Object body
+    public ResponseEntity<BaseResponse<CameraResponse>> create(
+            @Valid @RequestBody CameraRequest request
     ) {
-        if (body instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> list = (List<Map<String, Object>>) body;
-            List<CameraResponse> responses = cameraService.createBulk(list);
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(BaseResponse.ok("Cameras created", responses));
-        } else {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) body;
-            CameraResponse response = cameraService.createFromMap(map);
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(BaseResponse.ok("Camera created", response));
-        }
+        CameraResponse response = cameraService.create(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(BaseResponse.ok("Camera created", response));
+    }
+
+    // POST /api/cameras/bulk — tạo nhiều camera cùng lúc
+    @PostMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<List<CameraResponse>>> createBulk(
+            @Valid @RequestBody CameraBulkRequest request
+    ) {
+        List<CameraResponse> responses = cameraService.createBulk(request.getCameras());
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(BaseResponse.ok("Cameras created", responses));
     }
 
 

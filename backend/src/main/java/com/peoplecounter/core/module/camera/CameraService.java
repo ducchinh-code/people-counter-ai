@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -107,13 +106,13 @@ public class CameraService {
                 .build();
     }
 
-    public CameraResponse createFromMap(Map<String, Object> map) {
-        return doCreate(mapToRequest(map));
+    public CameraResponse create(CameraRequest request) {
+        return doCreate(request);
     }
 
-    public List<CameraResponse> createBulk(List<Map<String, Object>> list) {
-        return list.stream()
-                .map(map -> doCreate(mapToRequest(map)))
+    public List<CameraResponse> createBulk(List<CameraRequest> requests) {
+        return requests.stream()
+                .map(this::doCreate)
                 .toList();
     }
 
@@ -139,27 +138,5 @@ public class CameraService {
         messagingTemplate.convertAndSend("/topic/cameras", response);
 
         return response;
-    }
-
-    private CameraRequest mapToRequest(Map<String, Object> map) {
-        CameraRequest request = new CameraRequest();
-        request.setName((String) map.get("name"));
-        request.setSource((String) map.get("source"));
-        request.setTracker(
-                map.get("tracker") != null
-                        ? (String) map.get("tracker")
-                        : "botsort.yaml"
-        );
-        request.setEnabled(
-                map.get("enabled") != null
-                        ? (Boolean) map.get("enabled")
-                        : true
-        );
-
-        @SuppressWarnings("unchecked")
-        List<List<Integer>> region = (List<List<Integer>>) map.get("region");
-        request.setRegion(region);
-
-        return request;
     }
 }
