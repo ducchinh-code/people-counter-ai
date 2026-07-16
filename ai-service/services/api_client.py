@@ -1,5 +1,4 @@
 import os
-from functools import partial
 
 import requests
 import time
@@ -22,7 +21,7 @@ class ApiClient:
         })
         logger.info(f"ApiClient init — BACKEND_URL={BACKEND_URL}, API_KEY={'***' if API_KEY else 'EMPTY'}")
 
-    def push_hourly_stats(self, camera_id, hour, in_count, out_count):
+    def push_hourly_stats(self, camera_id, hour, in_count, out_count,partial=False):
 
         payload = {
             "cameraId": camera_id,

@@ -27,8 +27,7 @@ class Counter:
 
             verbose=False,
 
-            imgsz=384
-
+            imgsz=640
         )
 
     def process(self, frame):
