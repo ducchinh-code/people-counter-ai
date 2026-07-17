@@ -4,6 +4,8 @@ import logging
 
 ultralytics_logger.setLevel(logging.ERROR)
 
+CONF_THRESHOLD = 0.5
+
 class Counter:
 
     def __init__(
@@ -24,6 +26,8 @@ class Counter:
             region=region,
 
             classes=[0],
+
+            conf = CONF_THRESHOLD,
 
             verbose=False,
 
