@@ -14,7 +14,7 @@ from core.statistics import Statistics
 from utils.logger import get_logger
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
-TARGET_PROCESS_FPS = int(os.getenv("TARGET_FPS", "10"))
+
 
 
 class CameraWorker:
@@ -42,6 +42,10 @@ class CameraWorker:
         self.chart_file_name = f"people_flow_cam{camera_config.camera_id}.png"
         self.video_file_name = f"people_video_cam{camera_config.camera_id}.mp4"
 
+        self.video_fps = self.cap.get(cv2.CAP_PROP_FPS) or 25
+        self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.video_duration = self.total_frames / self.video_fps
+
         self.current_hour = None
         self.loop_count = 0
         self._read_fail_count = 0
@@ -49,17 +53,15 @@ class CameraWorker:
         self._cumulative_in = 0
         self._cumulative_out = 0
 
-        # Queue frame đọc từ video — maxsize=2 để không tích lũy frame cũ
-        self._frame_queue = queue.Queue(maxsize=2)
+        self._frame_queue = queue.Queue(maxsize=3)
 
-        # Queue frame để push lên backend
         self._push_queue = queue.Queue(maxsize=2)
 
         self._last_snapshot_push = 0.0
         self.SNAPSHOT_PUSH_INTERVAL = 1.0
 
-        self._fps_last_time = time.time()
-        self._fps_smoothed = 0.0
+        self._yolo_fps_smoothed = 0.0
+        self._yolo_fps_last_time = time.time()
         self._FPS_SMOOTHING = 0.9
 
         self.video_writer = None if HEADLESS else self._create_video_writer()
@@ -90,19 +92,26 @@ class CameraWorker:
 
     def _create_video_writer(self):
         Path("output").mkdir(exist_ok=True)
-        fps = self.cap.get(cv2.CAP_PROP_FPS) or 25
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         return cv2.VideoWriter(
             str(Path("output") / self.video_file_name),
-            fourcc, fps, (width, height)
+            fourcc, self.video_fps, (width, height)
         )
 
     def _read_worker(self):
-        """Thread riêng đọc frame liên tục từ video/camera"""
-        video_fps = self.cap.get(cv2.CAP_PROP_FPS) or 25
-        frame_delay = 1.0 / video_fps
+        frame_delay = 1.0 / self.video_fps
+        loop_start_time = time.time()
+
+        self.logger.info(
+            f"Video info — FPS: {self.video_fps:.1f} | "
+            f"Frames: {self.total_frames} | "
+            f"Duration: {self.video_duration:.1f}s"
+        )
+
+        read_fps_count = 0
+        read_fps_start = time.time()
 
         while not self._stop_requested:
             t_start = time.time()
@@ -110,36 +119,43 @@ class CameraWorker:
             success, frame = self.cap.read()
 
             if not success:
-                self._read_fail_count += 1
+                elapsed_real = time.time() - loop_start_time
+                speed_ratio = elapsed_real / self.video_duration if self.video_duration > 0 else 0
+                self.logger.info(
+                    f"Video loop #{self.loop_count + 1} complete — "
+                    f"Duration: {self.video_duration:.1f}s | "
+                    f"Real elapsed: {elapsed_real:.1f}s | "
+                    f"Speed: {speed_ratio:.2f}x "
+                    f"({'✓ realtime' if 0.95 <= speed_ratio <= 1.05 else '✗ not realtime'})"
+                )
                 self.loop_count += 1
-                self.logger.debug(f"Video looped (#{self.loop_count})")
+                loop_start_time = time.time()
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 self._reset_counter()
                 time.sleep(0.01)
                 continue
 
-            self._read_fail_count = 0
+            read_fps_count += 1
+            read_elapsed = time.time() - read_fps_start
+            if read_elapsed >= 5.0:
+                actual_fps = read_fps_count / read_elapsed
+                self.logger.debug(
+                    f"Read FPS: {actual_fps:.1f} / "
+                    f"Target: {self.video_fps:.1f} / "
+                    f"{'✓ OK' if abs(actual_fps - self.video_fps) < 2 else '✗ LAG'}"
+                )
+                read_fps_count = 0
+                read_fps_start = time.time()
 
-            # Nếu queue đầy bỏ frame cũ nhất
-            if self._frame_queue.full():
-                try:
-                    self._frame_queue.get_nowait()
-                except queue.Empty:
-                    pass
+            self._frame_queue.put(frame)
 
-            try:
-                self._frame_queue.put_nowait(frame)
-            except queue.Full:
-                pass
-
-            # Giữ đúng tốc độ video gốc
             elapsed = time.time() - t_start
             sleep_time = frame_delay - elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
+
     def _push_worker(self):
-        """Thread riêng push frame lên backend"""
         while not self._stop_requested:
             try:
                 frame_bytes = self._push_queue.get(timeout=1)
@@ -150,21 +166,19 @@ class CameraWorker:
             except Exception as e:
                 self.logger.warning(f"Push worker error: {e}")
 
+
     def run(self):
         self.logger.info(
             f"Started — source: {self.config.source} | "
             f"mode: {'headless' if HEADLESS else 'display'} | "
-            f"target fps: {TARGET_PROCESS_FPS}"
         )
 
         if not HEADLESS:
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
 
-        # Khởi động thread đọc frame
         read_thread = threading.Thread(target=self._read_worker, daemon=True)
         read_thread.start()
 
-        # Khởi động thread push frame
         if HEADLESS:
             push_thread = threading.Thread(target=self._push_worker, daemon=True)
             push_thread.start()
@@ -174,16 +188,9 @@ class CameraWorker:
         self.current_hour = self._hour_key()
         self.statistics.start_new_hour()
 
-        frame_interval = 1.0 / TARGET_PROCESS_FPS
-        last_process_time = 0.0
-        last_annotated = None
-
-        fps_count = 0
-        fps_start = time.time()
 
         while not self._stop_requested:
 
-            # Lấy frame mới nhất từ queue
             try:
                 frame = self._frame_queue.get(timeout=1)
             except queue.Empty:
@@ -191,49 +198,21 @@ class CameraWorker:
 
             now = time.time()
 
-            # Tính FPS
-            instant_fps = 1.0 / max(now - self._fps_last_time, 1e-6)
-            self._fps_smoothed = (
-                self._FPS_SMOOTHING * self._fps_smoothed
+            results = self.counter.process(frame)
+            last_annotated = results.plot_im
+
+            instant_fps = 1.0 / max(now - self._yolo_fps_last_time, 1e-6)
+            self._yolo_fps_smoothed = (
+                self._FPS_SMOOTHING * self._yolo_fps_smoothed
                 + (1 - self._FPS_SMOOTHING) * instant_fps
             )
-            self._fps_last_time = now
+            self._yolo_fps_last_time = now
 
-            # Chỉ chạy YOLO theo TARGET_PROCESS_FPS
-            if now - last_process_time >= frame_interval:
-                last_process_time = now
+            self._draw_fps(last_annotated)
+            self.statistics.update(self.total_in, self.total_out)
+            self._record_if_new_hour()
+            self._push_snapshot_if_due()
 
-                results = self.counter.process(frame)
-                last_annotated = results.plot_im
-
-                # Vẽ FPS lên frame
-                fps_text = f"FPS: {self._fps_smoothed:.1f}"
-                (text_w, text_h), _ = cv2.getTextSize(
-                    fps_text, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2
-                )
-                overlay = last_annotated.copy()
-                cv2.rectangle(overlay, (10, 10),
-                              (10 + text_w + 20, 10 + text_h + 20),
-                              (0, 0, 0), -1)
-                cv2.addWeighted(overlay, 0.5, last_annotated, 0.5, 0, last_annotated)
-                cv2.putText(last_annotated, fps_text,
-                            (20, 10 + text_h + 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
-
-                self.statistics.update(self.total_in, self.total_out)
-                self._record_if_new_hour()
-                self._push_snapshot_if_due()
-
-                fps_count += 1
-                if fps_count >= 30:
-                    elapsed = time.time() - fps_start
-                    self.logger.debug(
-                        f"YOLO FPS: {fps_count / elapsed:.1f}"
-                    )
-                    fps_count = 0
-                    fps_start = time.time()
-
-            # Push/hiển thị frame mới nhất
             display_frame = last_annotated if last_annotated is not None else frame
 
             if HEADLESS:
@@ -256,6 +235,23 @@ class CameraWorker:
                     self._stop_requested = True
 
         self._cleanup()
+
+    def _draw_fps(self, frame):
+        fps_text = f"FPS: {self._yolo_fps_smoothed:.1f}"
+        (text_w, text_h), _ = cv2.getTextSize(
+            fps_text, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2
+        )
+        overlay = frame.copy()
+        cv2.rectangle(
+            overlay, (10, 10),
+            (10 + text_w + 20, 10 + text_h + 20),
+            (0, 0, 0), -1
+        )
+        cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
+        cv2.putText(
+            frame, fps_text, (20, 10 + text_h + 10),
+            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2
+        )
 
     def _encode_frame(self, frame):
         try:
