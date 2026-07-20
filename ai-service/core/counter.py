@@ -1,11 +1,12 @@
+
 from ultralytics import solutions
 from ultralytics.utils import LOGGER as ultralytics_logger
 import logging
 
 ultralytics_logger.setLevel(logging.ERROR)
 
-CONF_THRESHOLD = 0.5
-
+CONF_THRESHOLD = 0.6
+IOU_THRESHOLD = 0.5
 class Counter:
 
     def __init__(
@@ -25,13 +26,18 @@ class Counter:
 
             region=region,
 
+            device="intel:gpu",
+
             classes=[0],
 
             conf = CONF_THRESHOLD,
 
+            iou=IOU_THRESHOLD,
+
             verbose=False,
 
-            imgsz=640
+            imgsz=640,
+
         )
 
     def process(self, frame):

@@ -74,6 +74,16 @@ public class CameraService {
     }
 
     @Transactional
+    public CameraResponse updateResolution(Long id, Integer width, Integer height) {
+        Camera camera = findById(id);
+        camera.setVideoWidth(width);
+        camera.setVideoHeight(height);
+
+        Camera saved = cameraRepository.save(camera);
+        return toResponse(saved);
+    }
+
+    @Transactional
     public void delete(Long id) {
         if (!cameraRepository.existsById(id)) {
             throw new ResourceNotFoundException("Camera", id);
@@ -98,6 +108,8 @@ public class CameraService {
                 .id(camera.getId())
                 .name(camera.getName())
                 .source(camera.getSource())
+                .videoWidth(camera.getVideoWidth())
+                .videoHeight(camera.getVideoHeight())
                 .region(camera.getRegion())
                 .tracker(camera.getTracker())
                 .enabled(camera.getEnabled())

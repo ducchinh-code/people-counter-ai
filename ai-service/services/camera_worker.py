@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+
 import cv2
 
 from core.tracker import Tracker
@@ -45,6 +46,13 @@ class CameraWorker:
         self.video_fps = self.cap.get(cv2.CAP_PROP_FPS) or 25
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.video_duration = self.total_frames / self.video_fps
+
+        video_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        video_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        if self.api_client:
+            self.api_client.update_resolution(
+                camera_config.camera_id, video_width, video_height
+            )
 
         self.current_hour = None
         self.loop_count = 0
@@ -188,6 +196,7 @@ class CameraWorker:
         self.current_hour = self._hour_key()
         self.statistics.start_new_hour()
 
+        _t_frame_count = 0
 
         while not self._stop_requested:
 
@@ -199,6 +208,7 @@ class CameraWorker:
             now = time.time()
 
             results = self.counter.process(frame)
+
             last_annotated = results.plot_im
 
             instant_fps = 1.0 / max(now - self._yolo_fps_last_time, 1e-6)
@@ -233,6 +243,7 @@ class CameraWorker:
                 cv2.imshow(self.window_name, display_frame)
                 if cv2.waitKey(1) & 0xFF == 27:
                     self._stop_requested = True
+
 
         self._cleanup()
 

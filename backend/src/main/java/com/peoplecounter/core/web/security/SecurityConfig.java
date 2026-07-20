@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/api/cameras/*/frame"
                         ).permitAll()
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/counter/snapshot"
+                                "/api/counter/snapshot",
+                                "/api/cameras/*/resolution"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.GET,
@@ -60,6 +61,8 @@ public class SecurityConfig {
                                 "/api/stats",
                                 "/api/stats/**"
                         ).permitAll()
+
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

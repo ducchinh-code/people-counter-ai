@@ -1,9 +1,9 @@
-matplotlib==3.11.0
+matplotlib==3.11.1
 numpy==2.4.6
-opencv-python-headless==4.13.0.92
+opencv-python-headless==5.0.0.93
 pandas==3.0.3
 python-dotenv==1.2.2
 requests==2.34.2
-ultralytics==8.4.77
+ultralytics==8.4.101
 websocket-client==1.9.0
 openvino==2026.2.1

@@ -22,4 +22,6 @@ public class CameraResponse {
     private Boolean enabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer videoWidth;
+    private Integer videoHeight;
 }

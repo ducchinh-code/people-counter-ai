@@ -23,4 +23,8 @@ public class CameraRequest {
     private String tracker = "botsort.yaml";
 
     private Boolean enabled = true;
+
+    private Integer videoWidth;
+
+    private Integer videoHeight;
 }

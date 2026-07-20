@@ -18,7 +18,7 @@ export default function Dashboard() {
     const [error, setError] = useState("");
     const [zoomedCamera, setZoomedCamera] = useState<CameraResponse | null>(null);
 
-    const { snapshots: liveSnapshots} = useSnapshotSocket();
+    const { snapshots: liveSnapshots } = useSnapshotSocket();
 
     useEffect(() => {
         async function load() {
@@ -55,11 +55,14 @@ export default function Dashboard() {
         );
     }
 
+    const zoomedSnapshot = zoomedCamera
+        ? liveSnapshots[zoomedCamera.id] || initialSnapshots[zoomedCamera.id]
+        : undefined;
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-xl font-semibold text-gray-800">Tổng quan Camera</h1>
-
             </div>
 
             {cameras.length === 0 ? (
@@ -79,9 +82,13 @@ export default function Dashboard() {
             {zoomedCamera && (
                 <CameraZoomModal
                     camera={zoomedCamera}
-                    snapshot={liveSnapshots[zoomedCamera.id] || initialSnapshots[zoomedCamera.id]}
-                    isLive={isSnapshotLive(liveSnapshots[zoomedCamera.id] || initialSnapshots[zoomedCamera.id])}
+                    snapshot={zoomedSnapshot}
+                    isLive={isSnapshotLive(zoomedSnapshot)}
                     onClose={() => setZoomedCamera(null)}
+                    onCameraUpdated={(updated) => {
+                        setCameras((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                        setZoomedCamera(updated);
+                    }}
                 />
             )}
         </div>

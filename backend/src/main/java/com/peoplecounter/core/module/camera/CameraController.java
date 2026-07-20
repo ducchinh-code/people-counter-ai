@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 
 @RestController
@@ -19,6 +19,9 @@ import java.util.List;
 public class CameraController {
 
     private final CameraService cameraService;
+
+    @Value("${app.api-key}")
+    private String apiKey;
 
     // GET /api/cameras
     @GetMapping
@@ -96,5 +99,23 @@ public class CameraController {
     ) {
         cameraService.delete(id);
         return ResponseEntity.ok(BaseResponse.ok("Camera deleted", null));
+    }
+
+    // PUT /api/cameras/{id}/resolution
+    @PutMapping("/{id}/resolution")
+    public ResponseEntity<BaseResponse<CameraResponse>> updateResolution(
+            @RequestHeader("X-Api-Key") String requestApiKey,
+            @PathVariable Long id,
+            @RequestParam Integer width,
+            @RequestParam Integer height
+    ) {
+        if (!apiKey.equals(requestApiKey)) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(BaseResponse.error("Invalid API key"));
+        }
+
+        CameraResponse response = cameraService.updateResolution(id, width, height);
+        return ResponseEntity.ok(BaseResponse.ok("Resolution updated", response));
     }
 }

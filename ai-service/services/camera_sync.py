@@ -13,6 +13,7 @@ class CameraSync:
         self.camera_manager = camera_manager
         self.ws_url = backend_url.replace("http://", "ws://").replace("https://", "wss://")
         self.ws_url += "/ws/websocket"
+        self._applied_configs = {}
 
     def start(self):
         thread = threading.Thread(
@@ -42,8 +43,6 @@ class CameraSync:
 
     def _on_open(self, ws):
         logger.info("WebSocket connected")
-
-        # Gửi CONNECT frame theo STOMP protocol
         ws.send("CONNECT\naccept-version:1.2\nheart-beat:0,0\n\n\x00")
 
     def _on_message(self, ws, message):
@@ -74,7 +73,15 @@ class CameraSync:
         camera_id = data["id"]
         enabled = data["enabled"]
 
-        if enabled and camera_id not in self.camera_manager.processes:
+        new_relevant = {
+            "source": data["source"],
+            "region": data["region"],
+            "tracker": data["tracker"],
+        }
+
+        is_running = camera_id in self.camera_manager.processes
+
+        if enabled and not is_running:
             config = CameraConfig(
                 camera_id=data["id"],
                 name=data["name"],
@@ -84,8 +91,31 @@ class CameraSync:
                 enabled=data["enabled"]
             )
             self.camera_manager.add_camera(config)
+            self._applied_configs[camera_id] = new_relevant
             logger.info(f"Camera '{data['name']}' started via WebSocket")
 
-        elif not enabled and camera_id in self.camera_manager.processes:
+        elif not enabled and is_running:
             self.camera_manager.stop_camera(camera_id)
+            self._applied_configs.pop(camera_id, None)
             logger.info(f"Camera '{data['name']}' stopped via WebSocket")
+
+        elif enabled and is_running:
+            old_relevant = self._applied_configs.get(camera_id)
+            if old_relevant != new_relevant:
+                logger.info(
+                    f"Camera '{data['name']}' config thay đổi "
+                    f"(source/region/tracker) — restart để áp dụng"
+                )
+                self.camera_manager.stop_camera(camera_id)
+
+                config = CameraConfig(
+                    camera_id=data["id"],
+                    name=data["name"],
+                    source=data["source"],
+                    region=data["region"],
+                    tracker=data["tracker"],
+                    enabled=data["enabled"]
+                )
+                self.camera_manager.add_camera(config)
+                self._applied_configs[camera_id] = new_relevant
+                logger.info(f"Camera '{data['name']}' restarted via WebSocket với config mới")

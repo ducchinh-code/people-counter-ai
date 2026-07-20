@@ -24,6 +24,12 @@ public class Camera extends BaseEntity {
     @Column(name = "source", nullable = false, columnDefinition = "TEXT")
     private String source;
 
+    @Column(name = "video_width")
+    private Integer videoWidth;
+
+    @Column(name = "video_height")
+    private Integer videoHeight;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "region", columnDefinition = "jsonb", nullable = false)
     private List<List<Integer>> region;

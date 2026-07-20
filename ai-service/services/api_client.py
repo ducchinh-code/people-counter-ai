@@ -102,3 +102,29 @@ class ApiClient:
 
         except Exception as e:
             logger.warning(f"push_snapshot cam{camera_id} failed: {e}")
+
+    def update_resolution(self, camera_id, width, height):
+
+        try:
+            response = self.session.put(
+                f"{self.base_url}/api/cameras/{camera_id}/resolution",
+                params={
+                    "width": width,
+                    "height": height
+                },
+                timeout=2
+            )
+            response.raise_for_status()
+            logger.debug(f"PUT /api/cameras/{camera_id}/resolution → {response.status_code}")
+
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"update_resolution cam{camera_id} — backend không kết nối được")
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"update_resolution cam{camera_id} — timeout")
+
+        except requests.exceptions.HTTPError as e:
+            logger.warning(f"update_resolution cam{camera_id} — HTTP error: {e}")
+
+        except Exception as e:
+            logger.warning(f"update_resolution cam{camera_id} failed: {e}")
