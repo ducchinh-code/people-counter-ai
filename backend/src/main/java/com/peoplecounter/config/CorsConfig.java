@@ -33,7 +33,6 @@ public class CorsConfig {
                 "Accept"
         ));
 
-        // Headers được phép đọc từ response
         config.setExposedHeaders(List.of(
                 "Authorization"
         ));

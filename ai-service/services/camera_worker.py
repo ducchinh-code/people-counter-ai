@@ -36,12 +36,13 @@ class CameraWorker:
             tracker=self.tracker,
             region=camera_config.region
         )
-        self.statistics = Statistics()
 
         self.window_name = f"{camera_config.camera_id} - {camera_config.name}"
         self.csv_file_name = f"people_statistics_cam{camera_config.camera_id}.csv"
         self.chart_file_name = f"people_flow_cam{camera_config.camera_id}.png"
         self.video_file_name = f"people_video_cam{camera_config.camera_id}.mp4"
+
+        self.statistics = Statistics(csv_path=self.csv_file_name)
 
         self.video_fps = self.cap.get(cv2.CAP_PROP_FPS) or 25
         self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -364,7 +365,8 @@ class CameraWorker:
 
     def _save_local_files(self):
         try:
-            self.statistics.save_csv(self.csv_file_name)
-            self.statistics.draw_chart(self.chart_file_name)
+            df = self.statistics.get_dataframe()
+            self.statistics.save_csv(self.csv_file_name, df=df)
+            self.statistics.draw_chart(self.chart_file_name, df=df)
         except Exception as e:
             self.logger.warning(f"Failed to save CSV/chart: {e}")

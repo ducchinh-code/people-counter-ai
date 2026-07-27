@@ -121,6 +121,7 @@ export default function CameraFormModal({
                         >
                             <option value="botsort.yaml">botsort.yaml</option>
                             <option value="bytetrack.yaml">bytetrack.yaml</option>
+                            <option value="botsort_reid.yaml">botsort_reid.yaml</option>
                         </select>
                     </Field>
 
