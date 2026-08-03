@@ -27,4 +27,6 @@ public class CameraRequest {
     private Integer videoWidth;
 
     private Integer videoHeight;
+
+    private Double maxFps;
 }

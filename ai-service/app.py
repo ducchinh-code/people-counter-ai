@@ -29,17 +29,21 @@ def main():
     wait_for_backend(backend_url)
 
     manager = CameraManager()
-
     sync = CameraSync(backend_url, manager)
-    sync.start()
 
     cameras = CameraLoader.load_from_backend()
     for camera in cameras:
         if camera.enabled:
             manager.add_camera(camera)
+            sync._applied_configs[camera.camera_id] = {
+                "source": camera.source,
+                "region": camera.region,
+                "tracker": camera.tracker,
+                "max_fps": camera.max_fps,
+            }
 
+    sync.start()
     manager.start()
-
 
 if __name__ == "__main__":
     main()

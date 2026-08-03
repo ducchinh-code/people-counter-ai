@@ -16,8 +16,6 @@ from utils.logger import get_logger
 
 HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
 
-
-
 class CameraWorker:
 
     def __init__(self, camera_config, detector, api_client=None):
@@ -62,7 +60,8 @@ class CameraWorker:
         self._cumulative_in = 0
         self._cumulative_out = 0
 
-        self._frame_queue = queue.Queue(maxsize=3)
+        self._frame_queue = queue.Queue(maxsize=1)
+        self._dropped_frame_count = 0
 
         self._push_queue = queue.Queue(maxsize=2)
 
@@ -110,17 +109,16 @@ class CameraWorker:
         )
 
     def _read_worker(self):
-        frame_delay = 1.0 / self.video_fps
-        loop_start_time = time.time()
+        target_fps = self.config.max_fps or self.video_fps
+        frame_delay = 1.0 / target_fps if target_fps > 0 else 0
 
         self.logger.info(
-            f"Video info — FPS: {self.video_fps:.1f} | "
-            f"Frames: {self.total_frames} | "
-            f"Duration: {self.video_duration:.1f}s"
+            f"Video info — Source FPS: {self.video_fps:.1f} | "
+            f"Target FPS (max_fps): {target_fps:.1f} | "
+            f"Frames: {self.total_frames} | Duration: {self.video_duration:.1f}s"
         )
 
-        read_fps_count = 0
-        read_fps_start = time.time()
+        loop_start_time = time.time()
 
         while not self._stop_requested:
             t_start = time.time()
@@ -134,29 +132,24 @@ class CameraWorker:
                     f"Video loop #{self.loop_count + 1} complete — "
                     f"Duration: {self.video_duration:.1f}s | "
                     f"Real elapsed: {elapsed_real:.1f}s | "
-                    f"Speed: {speed_ratio:.2f}x "
-                    f"({'✓ realtime' if 0.95 <= speed_ratio <= 1.05 else '✗ not realtime'})"
+                    f"Speed: {speed_ratio:.2f}x"
                 )
                 self.loop_count += 1
                 loop_start_time = time.time()
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 self._reset_counter()
-                time.sleep(0.01)
                 continue
 
-            read_fps_count += 1
-            read_elapsed = time.time() - read_fps_start
-            if read_elapsed >= 5.0:
-                actual_fps = read_fps_count / read_elapsed
-                self.logger.debug(
-                    f"Read FPS: {actual_fps:.1f} / "
-                    f"Target: {self.video_fps:.1f} / "
-                    f"{'✓ OK' if abs(actual_fps - self.video_fps) < 2 else '✗ LAG'}"
-                )
-                read_fps_count = 0
-                read_fps_start = time.time()
-
-            self._frame_queue.put(frame)
+            if self._frame_queue.full():
+                try:
+                    self._frame_queue.get_nowait()
+                    self._dropped_frame_count += 1
+                except queue.Empty:
+                    pass
+            try:
+                self._frame_queue.put_nowait(frame)
+            except queue.Full:
+                pass
 
             elapsed = time.time() - t_start
             sleep_time = frame_delay - elapsed
@@ -201,16 +194,18 @@ class CameraWorker:
 
         while not self._stop_requested:
 
+            _t0 = time.time()
             try:
                 frame = self._frame_queue.get(timeout=1)
             except queue.Empty:
                 continue
+            _t1 = time.time()
 
             now = time.time()
 
             results = self.counter.process(frame)
-
             last_annotated = results.plot_im
+            _t2 = time.time()
 
             instant_fps = 1.0 / max(now - self._yolo_fps_last_time, 1e-6)
             self._yolo_fps_smoothed = (
@@ -245,6 +240,17 @@ class CameraWorker:
                 if cv2.waitKey(1) & 0xFF == 27:
                     self._stop_requested = True
 
+            _t3 = time.time()
+            _t_frame_count += 1
+            if _t_frame_count % 30 == 0:
+                self.logger.info(
+                    f"[TIMING] queue_get={(_t1-_t0)*1000:.1f}ms | "
+                    f"counter.process={(_t2-_t1)*1000:.1f}ms | "
+                    f"draw+stats+encode/push={(_t3-_t2)*1000:.1f}ms | "
+                    f"TOTAL={(_t3-_t0)*1000:.1f}ms | "
+                    f"FPS xử lý thực: {self._yolo_fps_smoothed:.1f} | "
+                    f"Dropped frames (tích luỹ): {self._dropped_frame_count}"
+                )
 
         self._cleanup()
 

@@ -5,8 +5,8 @@ import logging
 
 ultralytics_logger.setLevel(logging.ERROR)
 
-CONF_THRESHOLD = 0.6
-IOU_THRESHOLD = 0.5
+CONF_THRESHOLD = 0.5
+IOU_THRESHOLD = 0.4
 class Counter:
 
     def __init__(
@@ -38,6 +38,7 @@ class Counter:
 
             imgsz=640,
 
+            max_det=300,
         )
 
     def process(self, frame):

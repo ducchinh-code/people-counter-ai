@@ -29,6 +29,9 @@ export interface CameraResponse {
     id: number;
     name: string;
     source: string;
+    videoWidth?: number;
+    videoHeight?: number;
+    maxFps?: number;
     region: number[][];
     tracker: string;
     enabled: boolean;
@@ -41,6 +44,7 @@ export interface CameraRequest {
     source: string;
     region: number[][];
     tracker: string;
+    maxFps?: number;
     enabled: boolean;
 }
 

@@ -77,6 +77,7 @@ class CameraSync:
             "source": data["source"],
             "region": data["region"],
             "tracker": data["tracker"],
+            "max_fps": data.get("maxFps"),
         }
 
         is_running = camera_id in self.camera_manager.processes
@@ -88,7 +89,8 @@ class CameraSync:
                 source=data["source"],
                 region=data["region"],
                 tracker=data["tracker"],
-                enabled=data["enabled"]
+                enabled=data["enabled"],
+                max_fps = data.get("maxFps"),
             )
             self.camera_manager.add_camera(config)
             self._applied_configs[camera_id] = new_relevant
@@ -114,7 +116,8 @@ class CameraSync:
                     source=data["source"],
                     region=data["region"],
                     tracker=data["tracker"],
-                    enabled=data["enabled"]
+                    enabled=data["enabled"],
+                    max_fps=data.get("maxFps"),
                 )
                 self.camera_manager.add_camera(config)
                 self._applied_configs[camera_id] = new_relevant

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class CameraConfig:
@@ -14,3 +15,5 @@ class CameraConfig:
     tracker: str
 
     enabled: bool
+
+    max_fps: Optional[float] = None

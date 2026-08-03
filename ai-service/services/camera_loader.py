@@ -13,10 +13,7 @@ class CameraLoader:
     @staticmethod
     def load_from_backend():
         try:
-            response = requests.get(
-                f"{BACKEND_URL}/api/cameras/enabled",
-                timeout=5
-            )
+            response = requests.get(f"{BACKEND_URL}/api/cameras/enabled", timeout=5)
             response.raise_for_status()
 
             cameras = []
@@ -27,7 +24,8 @@ class CameraLoader:
                     source=cam["source"],
                     region=cam["region"],
                     tracker=cam["tracker"],
-                    enabled=cam["enabled"]
+                    enabled=cam["enabled"],
+                    max_fps=cam.get("maxFps"),
                 ))
 
             logger.info(f"Loaded {len(cameras)} cameras from backend")

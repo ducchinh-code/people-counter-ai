@@ -24,4 +24,5 @@ public class CameraResponse {
     private LocalDateTime updatedAt;
     private Integer videoWidth;
     private Integer videoHeight;
+    private Double maxFps;
 }

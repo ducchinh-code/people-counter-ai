@@ -53,6 +53,7 @@ public class CameraService {
         camera.setRegion(request.getRegion());
         camera.setTracker(request.getTracker());
         camera.setEnabled(request.getEnabled());
+        camera.setMaxFps(request.getMaxFps());
 
         Camera saved = cameraRepository.save(camera);
         CameraResponse response = toResponse(saved);
@@ -110,6 +111,7 @@ public class CameraService {
                 .source(camera.getSource())
                 .videoWidth(camera.getVideoWidth())
                 .videoHeight(camera.getVideoHeight())
+                .maxFps(camera.getMaxFps())
                 .region(camera.getRegion())
                 .tracker(camera.getTracker())
                 .enabled(camera.getEnabled())
@@ -142,6 +144,7 @@ public class CameraService {
                 .region(request.getRegion())
                 .tracker(request.getTracker())
                 .enabled(request.getEnabled())
+                .maxFps(request.getMaxFps())
                 .build();
 
         Camera saved = cameraRepository.save(camera);

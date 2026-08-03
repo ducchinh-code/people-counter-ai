@@ -1,0 +1,2 @@
+ALTER TABLE cameras
+    ADD COLUMN max_fps DOUBLE PRECISION;

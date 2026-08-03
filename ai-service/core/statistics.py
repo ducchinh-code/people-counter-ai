@@ -45,7 +45,12 @@ class Statistics:
         try:
             date_part = hour_str.split("-")[0].strip()
             date_part = date_part.replace(" (partial)", "")
-            return datetime.strptime(date_part, "%d/%m %H:%M")
+            parsed = datetime.strptime(date_part, "%d/%m %H:%M")
+            now = datetime.now()
+            candidate = parsed.replace(year=now.year)
+            if candidate > now + timedelta(days=1):
+                candidate = candidate.replace(year=now.year - 1)
+            return candidate
         except (ValueError, IndexError):
             return None
 

@@ -15,6 +15,7 @@ interface FormState {
     tracker: string;
     enabled: boolean;
     regionText: string;
+    maxFpsText: string;
 }
 
 const emptyForm: FormState = {
@@ -23,6 +24,7 @@ const emptyForm: FormState = {
     tracker: "botsort.yaml",
     enabled: true,
     regionText: "0,0 100,0",
+    maxFpsText: "",
 };
 
 export default function CameraFormModal({
@@ -38,6 +40,7 @@ export default function CameraFormModal({
                 tracker: camera.tracker,
                 enabled: camera.enabled,
                 regionText: camera.region.map((p) => p.join(",")).join(" "),
+                maxFpsText: camera.maxFps != null ? String(camera.maxFps) : "",
             }
             : emptyForm
     );
@@ -62,18 +65,31 @@ export default function CameraFormModal({
         return points;
     }
 
+    function parseMaxFps(text: string): number | undefined {
+        const trimmed = text.trim();
+        if (trimmed === "") return undefined; // để trống = không giới hạn
+
+        const value = Number(trimmed);
+        if (isNaN(value) || value <= 0) {
+            throw new Error("Max FPS phải là số dương, hoặc để trống nếu không giới hạn.");
+        }
+        return value;
+    }
+
     async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setError("");
         setSaving(true);
         try {
             const region = parseRegion(form.regionText);
+            const maxFps = parseMaxFps(form.maxFpsText);
             await onSubmit({
                 name: form.name,
                 source: form.source,
                 tracker: form.tracker,
                 enabled: form.enabled,
                 region,
+                maxFps,
             });
         } catch (err) {
             const msg = isAxiosError(err)
@@ -123,6 +139,18 @@ export default function CameraFormModal({
                             <option value="bytetrack.yaml">bytetrack.yaml</option>
                             <option value="botsort_reid.yaml">botsort_reid.yaml</option>
                         </select>
+                    </Field>
+
+                    <Field label="Max FPS — để trống nếu không giới hạn">
+                        <input
+                            className="input"
+                            type="number"
+                            min="1"
+                            step="0.5"
+                            value={form.maxFpsText}
+                            onChange={(e) => setForm({ ...form, maxFpsText: e.target.value })}
+                            placeholder="vd: 15 (để trống = dùng hết khả năng xử lý)"
+                        />
                     </Field>
 
                     <Field label="Vùng đếm — các điểm x,y cách nhau bởi dấu cách">
