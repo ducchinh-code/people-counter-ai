@@ -62,6 +62,8 @@ class CameraWorker:
 
         self._frame_queue = queue.Queue(maxsize=1)
         self._dropped_frame_count = 0
+        self._dropped_frame_count_this_loop = 0
+        self._read_frame_count_this_loop = 0
 
         self._push_queue = queue.Queue(maxsize=2)
 
@@ -128,22 +130,40 @@ class CameraWorker:
             if not success:
                 elapsed_real = time.time() - loop_start_time
                 speed_ratio = elapsed_real / self.video_duration if self.video_duration > 0 else 0
+
+                drop_rate = (
+                    self._dropped_frame_count_this_loop / self._read_frame_count_this_loop * 100
+                    if self._read_frame_count_this_loop > 0 else 0
+                )
+
                 self.logger.info(
                     f"Video loop #{self.loop_count + 1} complete — "
                     f"Duration: {self.video_duration:.1f}s | "
                     f"Real elapsed: {elapsed_real:.1f}s | "
-                    f"Speed: {speed_ratio:.2f}x"
+                    f"Speed: {speed_ratio:.2f}x | "
+                    f"Dropped trong loop này: {self._dropped_frame_count_this_loop}/"
+                    f"{self._read_frame_count_this_loop} ({drop_rate:.1f}%) | "
+                    f"Tổng dropped (lifetime): {self._dropped_frame_count}"
                 )
+
                 self.loop_count += 1
                 loop_start_time = time.time()
+
+                # Reset số liệu riêng cho vòng lặp mới — không đụng tới _dropped_frame_count (lifetime)
+                self._dropped_frame_count_this_loop = 0
+                self._read_frame_count_this_loop = 0
+
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 self._reset_counter()
                 continue
+
+            self._read_frame_count_this_loop += 1
 
             if self._frame_queue.full():
                 try:
                     self._frame_queue.get_nowait()
                     self._dropped_frame_count += 1
+                    self._dropped_frame_count_this_loop += 1
                 except queue.Empty:
                     pass
             try:
