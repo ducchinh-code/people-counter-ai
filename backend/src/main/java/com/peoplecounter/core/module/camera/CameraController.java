@@ -31,7 +31,14 @@ public class CameraController {
 
     // GET /api/cameras/enabled
     @GetMapping("/enabled")
-    public ResponseEntity<BaseResponse<List<CameraResponse>>> getAllEnabled() {
+    public ResponseEntity<BaseResponse<List<CameraResponse>>> getAllEnabled(
+            @RequestHeader("X-Api-Key") String requestApiKey
+    ) {
+        if (!apiKey.equals(requestApiKey)) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(BaseResponse.error("Invalid API key"));
+        }
         return ResponseEntity.ok(BaseResponse.ok(cameraService.getAllEnabled()));
     }
 
@@ -43,7 +50,7 @@ public class CameraController {
         return ResponseEntity.ok(BaseResponse.ok(cameraService.getById(id)));
     }
 
-    // POST /api/cameras — tạo 1 camera
+    // POST /api/cameras
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<CameraResponse>> create(
@@ -55,7 +62,7 @@ public class CameraController {
                 .body(BaseResponse.ok("Camera created", response));
     }
 
-    // POST /api/cameras/bulk — tạo nhiều camera cùng lúc
+    // POST /api/cameras/bulk
     @PostMapping("/bulk")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<List<CameraResponse>>> createBulk(

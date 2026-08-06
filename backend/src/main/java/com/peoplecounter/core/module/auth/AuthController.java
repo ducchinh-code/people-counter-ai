@@ -2,8 +2,11 @@ package com.peoplecounter.core.module.auth;
 
 import com.peoplecounter.base.web.BaseResponse;
 import com.peoplecounter.core.module.auth.dto.AuthResponse;
+import com.peoplecounter.core.module.auth.dto.ChangePasswordRequest;
 import com.peoplecounter.core.module.auth.dto.LoginRequest;
 import com.peoplecounter.core.module.auth.dto.RegisterRequest;
+import com.peoplecounter.core.module.auth.dto.ResetPasswordRequest;
+import com.peoplecounter.core.web.security.JwtTokenProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,9 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private static final long STREAM_TOKEN_EXPIRATION_MS = 60_000;
 
     // POST /api/auth/login
     @PostMapping("/login")
@@ -88,5 +94,41 @@ public class AuthController {
     ) {
         authService.deleteUser(id, userDetails.getUsername());
         return ResponseEntity.ok(BaseResponse.ok("User deleted", null));
+    }
+
+    // GET /api/auth/stream-token
+    @GetMapping("/stream-token")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<String>> getStreamToken(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String token = jwtTokenProvider.generateToken(userDetails, STREAM_TOKEN_EXPIRATION_MS);
+        return ResponseEntity.ok(BaseResponse.ok(token));
+    }
+
+    // PUT /api/auth/change-password
+    @PutMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BaseResponse<Void>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        authService.changePassword(
+                userDetails.getUsername(),
+                request.getOldPassword(),
+                request.getNewPassword()
+        );
+        return ResponseEntity.ok(BaseResponse.ok("Password changed successfully", null));
+    }
+
+    // PUT /api/auth/users/{id}/reset-password
+    @PutMapping("/users/{id}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<com.peoplecounter.core.module.auth.dto.UserResponse>> resetPassword(
+            @PathVariable Long id,
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        var result = authService.resetPassword(id, request.getNewPassword());
+        return ResponseEntity.ok(BaseResponse.ok("Password reset successfully", result));
     }
 }

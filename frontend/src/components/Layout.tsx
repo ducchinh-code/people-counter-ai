@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
     `px-3 py-2 rounded-lg text-sm font-medium transition ${
@@ -10,6 +12,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
     const { user, isAdmin, logout } = useAuth();
+    const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -46,6 +49,12 @@ export default function Layout() {
             </span>
           </span>
                     <button
+                        onClick={() => setChangePasswordOpen(true)}
+                        className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+                    >
+                        Đổi mật khẩu
+                    </button>
+                    <button
                         onClick={logout}
                         className="text-sm text-red-600 hover:text-red-800 font-medium"
                     >
@@ -57,6 +66,10 @@ export default function Layout() {
             <main className="p-6">
                 <Outlet />
             </main>
+
+            {changePasswordOpen && (
+                <ChangePasswordModal onClose={() => setChangePasswordOpen(false)} />
+            )}
         </div>
     );
 }

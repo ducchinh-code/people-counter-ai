@@ -142,4 +142,38 @@ public class AuthService {
 
         userRepository.delete(user);
     }
+
+    public void changePassword(String username, String oldPassword, String newPassword) {
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User not found: " + username
+                ));
+
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Old password is incorrect");
+        }
+
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException(
+                    "New password must be different from the old password"
+            );
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    public UserResponse resetPassword(Long id, String newPassword) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "User not found: " + id
+                ));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return UserResponse.from(user);
+    }
 }

@@ -7,3 +7,5 @@ requests==2.34.2
 ultralytics==8.4.101
 websocket-client==1.9.0
 openvino==2026.2.1
+shapely==2.0.6
+lap==0.5.13

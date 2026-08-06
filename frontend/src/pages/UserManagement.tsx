@@ -5,8 +5,10 @@ import {
     toggleUser,
     updateUserRole,
     deleteUser,
+    resetUserPassword,
 } from "../api/users";
 import UserFormModal from "../components/UserFormModal";
+import ResetPasswordModal from "../components/ResetPasswordModal";
 import { useAuth } from "../context/AuthContext";
 import type { UserResponse, Role } from "../types";
 
@@ -17,6 +19,7 @@ export default function UserManagement() {
     const [error, setError] = useState("");
     const [modalOpen, setModalOpen] = useState(false);
     const [actionError, setActionError] = useState("");
+    const [resetTarget, setResetTarget] = useState<UserResponse | null>(null);
 
     async function load() {
         setLoading(true);
@@ -57,6 +60,12 @@ export default function UserManagement() {
         } catch (err) {
             setActionError(extractError(err));
         }
+    }
+
+    async function handleResetPassword(newPassword: string) {
+        if (!resetTarget) return;
+        await resetUserPassword(resetTarget.id, newPassword);
+        setResetTarget(null);
     }
 
     async function handleDelete(u: UserResponse) {
@@ -145,7 +154,13 @@ export default function UserManagement() {
                                     <td className="px-4 py-3 text-gray-500">
                                         {new Date(u.createdAt).toLocaleDateString("vi-VN")}
                                     </td>
-                                    <td className="px-4 py-3 text-right">
+                                    <td className="px-4 py-3 text-right space-x-3">
+                                        <button
+                                            onClick={() => setResetTarget(u)}
+                                            className="text-blue-600 hover:underline"
+                                        >
+                                            Reset mật khẩu
+                                        </button>
                                         <button
                                             onClick={() => void handleDelete(u)}
                                             disabled={isSelf}
@@ -171,6 +186,14 @@ export default function UserManagement() {
 
             {modalOpen && (
                 <UserFormModal onClose={() => setModalOpen(false)} onSubmit={handleCreate} />
+            )}
+
+            {resetTarget && (
+                <ResetPasswordModal
+                    username={resetTarget.username}
+                    onClose={() => setResetTarget(null)}
+                    onSubmit={handleResetPassword}
+                />
             )}
         </div>
     );

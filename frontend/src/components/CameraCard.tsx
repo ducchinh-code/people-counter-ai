@@ -1,4 +1,3 @@
-import { getStreamUrl } from "../api/cameras";
 import { useNow } from "../hooks/useNow";
 import { isSnapshotLive } from "../utils/liveStatus";
 import LiveStream from "./LiveStream";
@@ -38,7 +37,7 @@ export default function CameraCard({ camera, snapshot, onClick }: CameraCardProp
                 {camera.enabled && isLive  ? (
                     <LiveStream
                         key={camera.id}
-                        src={getStreamUrl(camera.id)}
+                        cameraId={camera.id}
                         alt={camera.name}
                         className="w-full h-full object-contain"
                     />

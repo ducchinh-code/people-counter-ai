@@ -6,6 +6,7 @@ from utils.logger import get_logger
 logger = get_logger("camera_loader")
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
+API_KEY = os.getenv("API_KEY", "")
 
 
 class CameraLoader:
@@ -13,7 +14,11 @@ class CameraLoader:
     @staticmethod
     def load_from_backend():
         try:
-            response = requests.get(f"{BACKEND_URL}/api/cameras/enabled", timeout=5)
+            response = requests.get(
+                f"{BACKEND_URL}/api/cameras/enabled",
+                headers={"X-Api-Key": API_KEY},
+                timeout=5,
+            )
             response.raise_for_status()
 
             cameras = []

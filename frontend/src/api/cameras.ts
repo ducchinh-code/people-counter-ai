@@ -1,4 +1,5 @@
 import apiClient from "./client";
+import { getStreamToken } from "./auth";
 import type { CameraResponse, CameraRequest, BaseResponse } from "../types";
 
 export async function getAllCameras(): Promise<CameraResponse[]> {
@@ -35,7 +36,8 @@ export async function deleteCamera(id: number): Promise<void> {
     await apiClient.delete(`/api/cameras/${id}`);
 }
 
-export function getStreamUrl(cameraId: number): string {
+export async function getStreamUrl(cameraId: number): Promise<string> {
     const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-    return `${base}/api/cameras/${cameraId}/stream`;
+    const token = await getStreamToken();
+    return `${base}/api/cameras/${cameraId}/stream?token=${encodeURIComponent(token)}`;
 }

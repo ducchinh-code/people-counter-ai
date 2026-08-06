@@ -28,3 +28,14 @@ export async function updateUserRole(id: number, role: Role): Promise<UserRespon
 export async function deleteUser(id: number): Promise<void> {
     await apiClient.delete(`/api/auth/users/${id}`);
 }
+
+export async function resetUserPassword(
+    id: number,
+    newPassword: string
+): Promise<UserResponse> {
+    const res = await apiClient.put<BaseResponse<UserResponse>>(
+        `/api/auth/users/${id}/reset-password`,
+        { newPassword }
+    );
+    return res.data.data;
+}

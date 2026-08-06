@@ -54,12 +54,7 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.GET,
-                                "/api/cameras/enabled",
-                                "/api/cameras/*/stream",
-                                "/api/counter/snapshot",
-                                "/api/counter/snapshot/**",
-                                "/api/stats",
-                                "/api/stats/**"
+                                "/api/cameras/enabled"
                         ).permitAll()
 
 

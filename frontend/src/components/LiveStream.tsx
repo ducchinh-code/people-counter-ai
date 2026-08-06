@@ -1,51 +1,35 @@
 import { useEffect, useRef, useState } from "react";
+import { getStreamUrl } from "../api/cameras";
 
 interface LiveStreamProps {
-    src: string;
+    cameraId: number;
     alt: string;
     className?: string;
-
     refreshIntervalMs?: number;
 }
 
-export default function LiveStream({
-                                       src,
-                                       alt,
-                                       className,
-                                       refreshIntervalMs = 4 * 60 * 1000, // mặc định 4 phút — an toàn dưới timeout 10 phút backend
-                                   }: LiveStreamProps) {
-    const [cacheBust, setCacheBust] = useState(0);
+export default function LiveStream({ cameraId, alt, className, refreshIntervalMs = 4 * 60 * 1000 }: LiveStreamProps) {
+    const [streamUrl, setStreamUrl] = useState<string | null>(null);
     const imgRef = useRef<HTMLImageElement>(null);
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCacheBust((n) => n + 1);
-        }, refreshIntervalMs);
-        return () => clearInterval(interval);
-    }, [refreshIntervalMs]);
-
-    useEffect(() => {
-        return () => {
-            if (imgRef.current) {
-                imgRef.current.src = "";
-            }
-        };
-    }, []);
-
-    function handleError() {
-        setCacheBust((n) => n + 1);
+    async function reconnect() {
+        const url = await getStreamUrl(cameraId);
+        setStreamUrl(url);
     }
 
-    const separator = src.includes("?") ? "&" : "?";
-    const bustedSrc = `${src}${separator}_r=${cacheBust}`;
+    useEffect(() => {
+        void reconnect();
+        const interval = setInterval(() => {
+            void reconnect();
+        }, refreshIntervalMs);
+        return () => clearInterval(interval);
+    }, [cameraId, refreshIntervalMs]);
 
-    return (
-        <img
-            ref={imgRef}
-            src={bustedSrc}
-            alt={alt}
-            className={className}
-            onError={handleError}
-        />
-    );
+    function handleError() {
+        void reconnect();
+    }
+
+    if (!streamUrl) return null;
+
+    return <img ref={imgRef} src={streamUrl} alt={alt} className={className} onError={handleError} />;
 }

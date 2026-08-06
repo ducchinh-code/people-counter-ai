@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getStreamUrl, updateCamera } from "../api/cameras";
 import LiveStream from "./LiveStream";
 import RegionEditor from "./RegionEditor";
@@ -25,6 +25,18 @@ export default function CameraZoomModal({
 
     const [isEditingRegion, setIsEditingRegion] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [regionImageUrl, setRegionImageUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isEditingRegion) return;
+        let cancelled = false;
+        getStreamUrl(camera.id).then((url) => {
+            if (!cancelled) setRegionImageUrl(url);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [isEditingRegion, camera.id]);
 
     const videoWidth = 1920;
     const videoHeight = 1080;
@@ -80,23 +92,27 @@ export default function CameraZoomModal({
                 </div>
 
                 <div className="p-5">
-                    {isEditingRegion ? (
+                    {isEditingRegion && regionImageUrl ? (
                         <RegionEditor
                             videoWidth={videoWidth}
                             videoHeight={videoHeight}
                             initialRegion={camera.region}
-                            imageSrc={getStreamUrl(camera.id)}
+                            imageSrc={regionImageUrl}
                             onSave={handleSaveRegion}
                             onCancel={() => setIsEditingRegion(false)}
                             saving={saving}
                         />
+                    ) : isEditingRegion ? (
+                        <p className="text-sm text-gray-500 text-center py-10">
+                            Đang tải hình ảnh...
+                        </p>
                     ) : (
                         <>
                             <div className="aspect-video bg-gray-900 flex items-center justify-center rounded-lg overflow-hidden">
                                 {camera.enabled && isLive ? (
                                     <LiveStream
                                         key={camera.id}
-                                        src={getStreamUrl(camera.id)}
+                                        cameraId={camera.id}
                                         alt={camera.name}
                                         className="w-full h-full object-contain"
                                     />

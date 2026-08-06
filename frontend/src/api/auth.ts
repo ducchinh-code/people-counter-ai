@@ -28,3 +28,15 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     const res = await apiClient.get<BaseResponse<CurrentUser>>("/api/auth/me");
     return res.data.data;
 }
+
+export async function changePassword(
+    oldPassword: string,
+    newPassword: string
+): Promise<void> {
+    await apiClient.put("/api/auth/change-password", { oldPassword, newPassword });
+}
+
+export async function getStreamToken(): Promise<string> {
+    const res = await apiClient.get<BaseResponse<string>>("/api/auth/stream-token");
+    return res.data.data;
+}
