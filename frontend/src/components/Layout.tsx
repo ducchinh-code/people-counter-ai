@@ -38,6 +38,11 @@ export default function Layout() {
                                 Quản lý người dùng
                             </NavLink>
                         )}
+                        {isAdmin && (
+                            <NavLink to="/audit-logs" className={linkClass}>
+                                Nhật ký hoạt động
+                            </NavLink>
+                        )}
                     </div>
                 </div>
 

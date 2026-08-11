@@ -35,6 +35,11 @@ spring:
     time-zone: Asia/Ho_Chi_Minh
     default-property-inclusion: non_null
 
+  # ── MVC Async ─────────────────────────────────────────
+  mvc:
+    async:
+      request-timeout: -1
+
 # ── Server ──────────────────────────────────────────────
 server:
   port: ${SERVER_PORT:8080}

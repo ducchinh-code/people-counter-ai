@@ -1,9 +1,12 @@
 package com.peoplecounter.core.module.camera;
 
 import com.peoplecounter.base.web.BaseResponse;
+import com.peoplecounter.core.module.audit.AuditAction;
+import com.peoplecounter.core.module.audit.AuditLogService;
 import com.peoplecounter.core.module.camera.dto.CameraBulkRequest;
 import com.peoplecounter.core.module.camera.dto.CameraRequest;
 import com.peoplecounter.core.module.camera.dto.CameraResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +22,7 @@ import java.util.List;
 public class CameraController {
 
     private final CameraService cameraService;
+    private final AuditLogService auditLogService;
 
     @Value("${app.api-key}")
     private String apiKey;
@@ -54,9 +58,16 @@ public class CameraController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<CameraResponse>> create(
-            @Valid @RequestBody CameraRequest request
+            @Valid @RequestBody CameraRequest request,
+            org.springframework.security.core.Authentication auth,
+            HttpServletRequest httpRequest
     ) {
         CameraResponse response = cameraService.create(request);
+        auditLogService.log(
+                auth.getName(), AuditAction.CREATE_CAMERA,
+                "CAMERA", String.valueOf(response.getId()), request.getName(),
+                auditLogService.extractIp(httpRequest)
+        );
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(BaseResponse.ok("Camera created", response));
@@ -66,9 +77,16 @@ public class CameraController {
     @PostMapping("/bulk")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<List<CameraResponse>>> createBulk(
-            @Valid @RequestBody CameraBulkRequest request
+            @Valid @RequestBody CameraBulkRequest request,
+            org.springframework.security.core.Authentication auth,
+            HttpServletRequest httpRequest
     ) {
         List<CameraResponse> responses = cameraService.createBulk(request.getCameras());
+        auditLogService.log(
+                auth.getName(), AuditAction.BULK_CREATE_CAMERA,
+                "CAMERA", null, "count=" + responses.size(),
+                auditLogService.extractIp(httpRequest)
+        );
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(BaseResponse.ok("Cameras created", responses));
@@ -80,31 +98,50 @@ public class CameraController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<CameraResponse>> update(
             @PathVariable Long id,
-            @Valid @RequestBody CameraRequest request
+            @Valid @RequestBody CameraRequest request,
+            org.springframework.security.core.Authentication auth,
+            HttpServletRequest httpRequest
     ) {
-        return ResponseEntity.ok(
-                BaseResponse.ok("Camera updated", cameraService.update(id, request))
+        CameraResponse response = cameraService.update(id, request);
+        auditLogService.log(
+                auth.getName(), AuditAction.UPDATE_CAMERA,
+                "CAMERA", String.valueOf(id), request.getName(),
+                auditLogService.extractIp(httpRequest)
         );
+        return ResponseEntity.ok(BaseResponse.ok("Camera updated", response));
     }
 
     // PATCH /api/cameras/{id}/toggle
     @PatchMapping("/{id}/toggle")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<CameraResponse>> toggle(
-            @PathVariable Long id
+            @PathVariable Long id,
+            org.springframework.security.core.Authentication auth,
+            HttpServletRequest httpRequest
     ) {
-        return ResponseEntity.ok(
-                BaseResponse.ok("Camera toggled", cameraService.toggleEnabled(id))
+        CameraResponse response = cameraService.toggleEnabled(id);
+        auditLogService.log(
+                auth.getName(), AuditAction.TOGGLE_CAMERA,
+                "CAMERA", String.valueOf(id), "enabled=" + response.getEnabled(),
+                auditLogService.extractIp(httpRequest)
         );
+        return ResponseEntity.ok(BaseResponse.ok("Camera toggled", response));
     }
 
     // DELETE /api/cameras/{id}
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<Void>> delete(
-            @PathVariable Long id
+            @PathVariable Long id,
+            org.springframework.security.core.Authentication auth,
+            HttpServletRequest httpRequest
     ) {
         cameraService.delete(id);
+        auditLogService.log(
+                auth.getName(), AuditAction.DELETE_CAMERA,
+                "CAMERA", String.valueOf(id), null,
+                auditLogService.extractIp(httpRequest)
+        );
         return ResponseEntity.ok(BaseResponse.ok("Camera deleted", null));
     }
 

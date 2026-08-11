@@ -44,6 +44,7 @@ services:
       HEADLESS: "true"
       BACKEND_URL: http://backend:8080
       API_KEY: ${APP_API_KEY:-dev-secret-key}
+      MODEL_NAME: ${MODEL_NAME:-final_best_openvino_model}
       TZ: Asia/Ho_Chi_Minh
       PYTHONTZPATH: ""
     volumes:
