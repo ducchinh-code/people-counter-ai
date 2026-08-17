@@ -11,7 +11,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -86,6 +88,32 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(BaseResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex) {
+        log.debug("Async response không còn dùng được — client đã ngắt kết nối stream: {}", ex.getMessage());
+    }
+
+    @ExceptionHandler(IOException.class)
+    public void handleIOException(IOException ex) {
+        if (isClientDisconnect(ex)) {
+            log.debug("Client đã ngắt kết nối giữa chừng: {}", ex.getMessage());
+        } else {
+            log.warn("IO error: {}", ex.getMessage());
+        }
+    }
+
+    private boolean isClientDisconnect(IOException ex) {
+        String message = ex.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase();
+        return lower.contains("broken pipe")
+                || lower.contains("connection reset")
+                || lower.contains("connection aborted")
+                || lower.contains("an established connection was aborted");
     }
 
     @ExceptionHandler(Exception.class)

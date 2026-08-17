@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getAllCameras } from "../api/cameras";
 import { getAllSnapshots } from "../api/counter";
 import { useSnapshotSocket } from "../hooks/useSnapshotSocket";
 import CameraCard from "../components/CameraCard";
 import CameraZoomModal from "../components/CameraZoomModal";
+import LiveStream from "../components/LiveStream";
 import type { CameraResponse, CounterDataResponse } from "../types";
 import { isSnapshotLive } from "../utils/liveStatus";
 
@@ -17,6 +19,9 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [zoomedCamera, setZoomedCamera] = useState<CameraResponse | null>(null);
+
+    const [cardSlots, setCardSlots] = useState<Record<number, HTMLDivElement | null>>({});
+    const [modalSlot, setModalSlot] = useState<HTMLDivElement | null>(null);
 
     const { snapshots: liveSnapshots } = useSnapshotSocket();
 
@@ -42,6 +47,24 @@ export default function Dashboard() {
         }
         void load();
     }, []);
+
+    const setCardSlot = useCallback((cameraId: number, el: HTMLDivElement | null) => {
+        setCardSlots((prev) => {
+            if (prev[cameraId] === el) return prev;
+            return { ...prev, [cameraId]: el };
+        });
+    }, []);
+
+    const cardSlotRefCallbacks = useRef<Record<number, (el: HTMLDivElement | null) => void>>({});
+
+    function getCardSlotRef(cameraId: number) {
+        let fn = cardSlotRefCallbacks.current[cameraId];
+        if (!fn) {
+            fn = (el: HTMLDivElement | null) => setCardSlot(cameraId, el);
+            cardSlotRefCallbacks.current[cameraId] = fn;
+        }
+        return fn;
+    }
 
     if (loading) {
         return <p className="text-gray-500">Đang tải dữ liệu...</p>;
@@ -75,6 +98,7 @@ export default function Dashboard() {
                             camera={camera}
                             snapshot={liveSnapshots[camera.id] || initialSnapshots[camera.id]}
                             onClick={() => setZoomedCamera(camera)}
+                            onSlotRef={getCardSlotRef(camera.id)}
                         />
                     ))}
                 </div>
@@ -89,8 +113,33 @@ export default function Dashboard() {
                         setCameras((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
                         setZoomedCamera(updated);
                     }}
+                    onSlotRef={setModalSlot}
                 />
             )}
+
+            {/*
+
+            */}
+            {cameras
+                .filter((camera) =>
+                    camera.enabled &&
+                    isSnapshotLive(liveSnapshots[camera.id] || initialSnapshots[camera.id])
+                )
+                .map((camera) => {
+                    const target = zoomedCamera?.id === camera.id
+                        ? (modalSlot ?? cardSlots[camera.id])
+                        : cardSlots[camera.id];
+                    if (!target) return null;
+                    return createPortal(
+                        <LiveStream
+                            cameraId={camera.id}
+                            alt={camera.name}
+                            className="w-full h-full object-contain"
+                        />,
+                        target,
+                        `live-stream-${camera.id}`
+                    );
+                })}
         </div>
     );
 }

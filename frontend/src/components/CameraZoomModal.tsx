@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { getStreamUrl, updateCamera } from "../api/cameras";
-import LiveStream from "./LiveStream";
 import RegionEditor from "./RegionEditor";
 import type { CameraResponse, CounterDataResponse } from "../types";
 
@@ -10,6 +9,7 @@ interface CameraZoomModalProps {
     isLive: boolean;
     onClose: () => void;
     onCameraUpdated?: (updated: CameraResponse) => void;
+    onSlotRef?: (el: HTMLDivElement | null) => void;
 }
 
 export default function CameraZoomModal({
@@ -18,6 +18,7 @@ export default function CameraZoomModal({
                                             isLive,
                                             onClose,
                                             onCameraUpdated,
+                                            onSlotRef,
                                         }: CameraZoomModalProps) {
     const inCount = snapshot?.inCount ?? 0;
     const outCount = snapshot?.outCount ?? 0;
@@ -38,8 +39,8 @@ export default function CameraZoomModal({
         };
     }, [isEditingRegion, camera.id]);
 
-    const videoWidth = 1920;
-    const videoHeight = 1080;
+    const videoWidth = camera.videoWidth ?? 1920;
+    const videoHeight = camera.videoHeight ?? 1080;
 
     async function handleSaveRegion(newRegion: number[][]) {
         setSaving(true);
@@ -50,6 +51,7 @@ export default function CameraZoomModal({
                 region: newRegion,
                 tracker: camera.tracker,
                 enabled: camera.enabled,
+                maxFps: camera.maxFps,
             });
             onCameraUpdated?.(updated);
             setIsEditingRegion(false);
@@ -110,12 +112,7 @@ export default function CameraZoomModal({
                         <>
                             <div className="aspect-video bg-gray-900 flex items-center justify-center rounded-lg overflow-hidden">
                                 {camera.enabled && isLive ? (
-                                    <LiveStream
-                                        key={camera.id}
-                                        cameraId={camera.id}
-                                        alt={camera.name}
-                                        className="w-full h-full object-contain"
-                                    />
+                                    <div ref={onSlotRef} className="w-full h-full" />
                                 ) : (
                                     <span className="text-gray-500 text-sm px-4 text-center">
                                         {camera.enabled

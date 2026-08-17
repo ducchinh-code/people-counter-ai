@@ -1,17 +1,17 @@
 import { useNow } from "../hooks/useNow";
 import { isSnapshotLive } from "../utils/liveStatus";
-import LiveStream from "./LiveStream";
 import type { CameraResponse, CounterDataResponse } from "../types";
 
 interface CameraCardProps {
     camera: CameraResponse;
     snapshot?: CounterDataResponse;
     onClick?: () => void;
+    onSlotRef?: (el: HTMLDivElement | null) => void;
 }
 
 const STALE_THRESHOLD_MS = 10_000;
 
-export default function CameraCard({ camera, snapshot, onClick }: CameraCardProps) {
+export default function CameraCard({ camera, snapshot, onClick, onSlotRef }: CameraCardProps) {
     const now = useNow(2000);
 
     const inCount = snapshot?.inCount ?? 0;
@@ -34,13 +34,8 @@ export default function CameraCard({ camera, snapshot, onClick }: CameraCardProp
             onClick={onClick}
             className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="aspect-video bg-gray-900 flex items-center justify-center">
-                {camera.enabled && isLive  ? (
-                    <LiveStream
-                        key={camera.id}
-                        cameraId={camera.id}
-                        alt={camera.name}
-                        className="w-full h-full object-contain"
-                    />
+                {camera.enabled && isLive ? (
+                    <div ref={onSlotRef} className="w-full h-full" />
                 ) : (
                     <span className="text-gray-500 text-sm px-4 text-center">
             {camera.enabled

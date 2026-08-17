@@ -40,7 +40,7 @@ class ApiClient:
                 f"{self.base_url}/api/cameras/{camera_id}/frame",
                 data=frame_bytes,
                 headers={**self.session.headers, "Content-Type": "image/jpeg"},
-                timeout=1
+                timeout=3
             )
             response.raise_for_status()
 

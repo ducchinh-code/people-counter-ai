@@ -27,7 +27,9 @@ public class StreamController {
             ("--" + BOUNDARY + "\r\nContent-Type: image/jpeg\r\n\r\n").getBytes();
     private static final byte[] NEWLINE_BYTES = "\r\n".getBytes();
 
-    // POST /api/cameras/{id}/frame — AI service push JPEG frame
+    private static final long MAX_STREAM_DURATION_MS = 5 * 60 * 1000;
+
+    // POST /api/cameras/{id}/frame
     @PostMapping("/{id}/frame")
     public ResponseEntity<Void> receiveFrame(
             @PathVariable Long id,
@@ -42,7 +44,7 @@ public class StreamController {
         return ResponseEntity.ok().build();
     }
 
-    // GET /api/cameras/{id}/stream — Frontend xem MJPEG stream
+    // GET /api/cameras/{id}/stream
     @GetMapping("/{id}/stream")
     public ResponseEntity<StreamingResponseBody> streamVideo(
             @PathVariable Long id
@@ -51,28 +53,46 @@ public class StreamController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        StreamingResponseBody body = outputStream -> {
-            while (true) {
-                byte[] frame = streamService.getLatestFrame(id);
+        if (!streamService.tryAcquireViewer(id)) {
+            log.warn("Camera {} đã đạt giới hạn số client xem đồng thời", id);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+        }
 
-                if (frame != null) {
+        StreamingResponseBody body = outputStream -> {
+            long startedAt = System.currentTimeMillis();
+            try {
+                while (true) {
+                    if (System.currentTimeMillis() - startedAt > MAX_STREAM_DURATION_MS) {
+                        log.debug(
+                                "Camera {}: chủ động đóng kết nối stream sau {} phút để giải phóng viewer slot",
+                                id, MAX_STREAM_DURATION_MS / 60_000
+                        );
+                        break;
+                    }
+
+                    byte[] frame = streamService.getLatestFrame(id);
+
+                    if (frame != null) {
+                        try {
+                            outputStream.write(BOUNDARY_BYTES);
+                            outputStream.write(frame);
+                            outputStream.write(NEWLINE_BYTES);
+                            outputStream.flush();
+                        } catch (IOException e) {
+                            log.debug("Stream client disconnected: camera {}", id);
+                            break;
+                        }
+                    }
+
                     try {
-                        outputStream.write(BOUNDARY_BYTES);
-                        outputStream.write(frame);
-                        outputStream.write(NEWLINE_BYTES);
-                        outputStream.flush();
-                    } catch (IOException e) {
-                        log.debug("Stream client disconnected: camera {}", id);
+                        Thread.sleep(66);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         break;
                     }
                 }
-
-                try {
-                    Thread.sleep(66);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+            } finally {
+                streamService.releaseViewer(id);
             }
         };
 

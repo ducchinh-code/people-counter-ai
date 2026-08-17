@@ -28,7 +28,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuditLogService auditLogService;
 
-    private static final long STREAM_TOKEN_EXPIRATION_MS = 60_000;
+    private static final long STREAM_TOKEN_EXPIRATION_MS = 3*60_000;
 
     // POST /api/auth/login
     @PostMapping("/login")
